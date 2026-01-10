@@ -1,17 +1,25 @@
-import React from 'react';
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, History, Settings, LogOut, Menu, Brain } from 'lucide-react';
+import { LayoutDashboard, History, Settings, LogOut, Menu, Brain, BarChart2, Activity } from 'lucide-react';
 
 const Layout = ({ children }) => {
     const location = useLocation();
-    const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
     const navItems = [
         { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
+        { path: '/analytics', icon: BarChart2, label: 'Analytics' },
+        { path: '/maintenance', icon: Activity, label: 'Maintenance' },
         { path: '/history', icon: History, label: 'History' },
         { path: '/training', icon: Brain, label: 'AI Training' },
         { path: '/settings', icon: Settings, label: 'Settings' },
     ];
+
+    const handleLogout = () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('username');
+        window.location.href = '/login';
+    };
 
     return (
         <div className="flex h-screen bg-gray-900 text-white overflow-hidden">
@@ -60,7 +68,10 @@ const Layout = ({ children }) => {
                 </nav>
 
                 <div className="p-4 border-t border-gray-700">
-                    <button className="flex items-center gap-3 p-3 w-full rounded-lg text-red-400 hover:bg-red-900/20 transition-colors">
+                    <button
+                        onClick={handleLogout}
+                        className="flex items-center gap-3 p-3 w-full rounded-lg text-red-400 hover:bg-red-900/20 transition-colors"
+                    >
                         <LogOut className="w-5 h-5 shrink-0" />
                         {isSidebarOpen && <span className="font-medium">Logout</span>}
                     </button>

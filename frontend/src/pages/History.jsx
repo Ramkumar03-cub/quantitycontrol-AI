@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Calendar, Filter, Download, Search, ChevronLeft, ChevronRight, X, Eye, CheckCircle, XCircle, Activity } from 'lucide-react';
+import { Calendar, Filter, Download, Search, ChevronLeft, ChevronRight, X, Eye, CheckCircle, XCircle, Activity, FileText } from 'lucide-react';
 
 const History = () => {
     const [historyData, setHistoryData] = useState([]);
@@ -18,6 +18,10 @@ const History = () => {
 
     const handleExport = () => {
         window.open('http://localhost:8000/history/export', '_blank');
+    };
+
+    const handleDownloadReport = () => {
+        window.open('http://localhost:8000/reports/generate', '_blank');
     };
 
     // Filter Logic
@@ -71,6 +75,14 @@ const History = () => {
                         <option value="PASS">PASS</option>
                         <option value="FAIL">FAIL</option>
                     </select>
+
+                    <button
+                        onClick={handleDownloadReport}
+                        className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                        <FileText className="w-4 h-4" />
+                        PDF Report
+                    </button>
 
                     <button
                         onClick={handleExport}

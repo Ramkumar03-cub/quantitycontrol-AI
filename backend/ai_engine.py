@@ -37,22 +37,112 @@ class AIEngine:
             "timestamp": time.time()
         }
 
-    def predict_maintenance(self, sensor_history: list) -> dict:
+    def train_model(self, history_data):
         """
-        Predicts system health and maintenance needs.
+        Trains a Linear Regression model on historical sensor data.
         """
-        # Simulate health decaying over time or based on random factors
-        health_score = max(0, min(100, 100 - (time.time() % 1000) / 20 + random.randint(-5, 5)))
-        
-        status = "Healthy"
-        if health_score < 80:
-            status = "Warning"
-        if health_score < 60:
-            status = "Critical"
+        try:
+            from sklearn.linear_model import LinearRegression
+            import numpy as np
+            
+            if not history_data:
+                return False
+                
+            # Prepare training data
+            X = []
+            y = []
+            
+            for record in history_data:
+                sensors = record.get('sensor_data')
+                if not sensors:
+                    sensors = {}
+                # Feature vector: [vibration, temperature, pressure]
+                features = [
+                    sensors.get('vibration', 0),
+                    sensors.get('temperature', 0),
+                    sensors.get('pressure', 0)
+                ]
+                X.append(features)
+                
+                # Synthetic target: Health Score (0-100)
+                # In a real scenario, this would be 'time_to_failure' or actual health labels
+                # Here we simulate a ground truth based on physics
+                vib = sensors.get('vibration', 0)
+                temp = sensors.get('temperature', 0)
+                
+                # Health drops as vibration > 0.5 or temp > 80
+                penalty = max(0, (vib - 0.2) * 50) + max(0, (temp - 60) * 2)
+                health = max(0, 100 - penalty)
+                y.append(health)
+                
+            if len(X) < 5: # Need minimal data
+                return False
+                
+            self.model = LinearRegression()
+            self.model.fit(X, y)
+            self.is_trained = True
+            return True
+        except Exception as e:
+            print(f"Training error: {e}")
+            return False
 
-        return {
-            "health_score": round(health_score, 1),
-            "status": status,
-            "predicted_failure_hours": int(health_score * 2.5),
-            "maintenance_required": health_score < 75
-        }
+    def predict_maintenance(self, current_sensors: dict) -> dict:
+        """
+        Predicts system health using the trained model.
+        """
+        try:
+            print("Executing predict_maintenance...")
+            # Prepare input
+            features = [[
+                current_sensors.get('vibration', 0),
+                current_sensors.get('temperature', 0),
+                current_sensors.get('pressure', 0)
+            ]]
+            
+            health_score = 100
+            used_model = False
+            
+            if hasattr(self, 'is_trained') and self.is_trained and hasattr(self, 'model'):
+                try:
+                    health_score = self.model.predict(features)[0]
+                    health_score = max(0, min(100, health_score)) # Clamp
+                    used_model = True
+                except Exception as e:
+                    print(f"Prediction error (using fallback): {e}")
+            
+            if not used_model:
+                 # Simple fallback logic
+                vib = current_sensors.get('vibration', 0)
+                # Simple physics: high vibration = low health
+                health_score = max(0, 100 - (vib * 20)) # Scale vib 0-5 to 0-100 penalty
+
+            status = "Healthy"
+            if health_score < 80:
+                status = "Warning"
+            if health_score < 60:
+                status = "Critical"
+
+            # Estimate failure time (heuristic based on health)
+            try:
+                hours_to_failure = int(health_score * 5) # Max 500 hours
+            except:
+                hours_to_failure = 0
+
+            import math
+            if math.isnan(health_score) or math.isinf(health_score):
+                health_score = 0.0
+                
+            return {
+                "health_score": float(round(health_score, 1)),
+                "status": str(status),
+                "predicted_failure_hours": int(hours_to_failure),
+                "maintenance_required": bool(health_score < 75)
+            }
+        except Exception as e:
+            print(f"Critical error in predict_maintenance: {e}")
+            return {
+                "health_score": 0,
+                "status": "Error",
+                "predicted_failure_hours": 0,
+                "maintenance_required": True
+            }

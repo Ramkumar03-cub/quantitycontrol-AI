@@ -1,9 +1,10 @@
-import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import Login from './pages/Login';
 import History from './pages/History';
+import Analytics from './pages/Analytics';
+import Maintenance from './pages/Maintenance';
 import Training from './pages/Training';
 import Settings from './pages/Settings';
 
@@ -25,6 +26,18 @@ function App() {
         <Route path="/" element={
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/analytics" element={
+          <ProtectedRoute>
+            <Analytics />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/maintenance" element={
+          <ProtectedRoute>
+            <Maintenance />
           </ProtectedRoute>
         } />
 

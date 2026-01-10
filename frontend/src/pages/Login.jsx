@@ -1,18 +1,46 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, User } from 'lucide-react';
+import { Lock, User, UserPlus, LogIn } from 'lucide-react';
 
 const Login = () => {
+    const [isRegistering, setIsRegistering] = useState(false);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
     const navigate = useNavigate();
 
-    const handleLogin = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        // Mock login - in a real app, this would hit the backend
-        if (username && password) {
-            localStorage.setItem('token', 'mock-token');
-            navigate('/');
+        setError('');
+        setSuccess('');
+
+        const endpoint = isRegistering ? '/auth/register' : '/auth/login';
+
+        try {
+            const res = await fetch(`http://localhost:8000${endpoint}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || 'Action failed');
+            }
+
+            if (isRegistering) {
+                setSuccess('Registration successful! Please login.');
+                setIsRegistering(false);
+                setPassword('');
+            } else {
+                localStorage.setItem('token', data.access_token);
+                localStorage.setItem('username', data.username);
+                navigate('/');
+            }
+        } catch (err) {
+            setError(err.message);
         }
     };
 
@@ -23,10 +51,24 @@ const Login = () => {
                     <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500 mb-2">
                         QC AI
                     </h1>
-                    <p className="text-gray-400">Sign in to access the dashboard</p>
+                    <p className="text-gray-400">
+                        {isRegistering ? 'Create a new account' : 'Sign in to access dashboard'}
+                    </p>
                 </div>
 
-                <form onSubmit={handleLogin} className="space-y-6">
+                {error && (
+                    <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-2 rounded mb-4 text-sm text-center">
+                        {error}
+                    </div>
+                )}
+
+                {success && (
+                    <div className="bg-green-900/50 border border-green-500 text-green-200 px-4 py-2 rounded mb-4 text-sm text-center">
+                        {success}
+                    </div>
+                )}
+
+                <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
                         <label className="block text-sm font-medium text-gray-400 mb-2">Username</label>
                         <div className="relative">
@@ -37,6 +79,7 @@ const Login = () => {
                                 onChange={(e) => setUsername(e.target.value)}
                                 className="w-full bg-gray-900 border border-gray-700 rounded-lg py-2 pl-10 pr-4 text-white focus:outline-none focus:border-blue-500 transition-colors"
                                 placeholder="Enter username"
+                                required
                             />
                         </div>
                     </div>
@@ -51,17 +94,32 @@ const Login = () => {
                                 onChange={(e) => setPassword(e.target.value)}
                                 className="w-full bg-gray-900 border border-gray-700 rounded-lg py-2 pl-10 pr-4 text-white focus:outline-none focus:border-blue-500 transition-colors"
                                 placeholder="Enter password"
+                                required
                             />
                         </div>
                     </div>
 
                     <button
                         type="submit"
-                        className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white font-bold py-2 px-4 rounded-lg hover:opacity-90 transition-opacity"
+                        className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white font-bold py-2 px-4 rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
                     >
-                        Sign In
+                        {isRegistering ? <UserPlus className="w-5 h-5" /> : <LogIn className="w-5 h-5" />}
+                        {isRegistering ? 'Register' : 'Sign In'}
                     </button>
                 </form>
+
+                <div className="mt-6 text-center">
+                    <button
+                        onClick={() => {
+                            setIsRegistering(!isRegistering);
+                            setError('');
+                            setSuccess('');
+                        }}
+                        className="text-blue-400 hover:text-blue-300 text-sm font-medium"
+                    >
+                        {isRegistering ? 'Already have an account? Sign In' : "Don't have an account? Register"}
+                    </button>
+                </div>
             </div>
         </div>
     );
