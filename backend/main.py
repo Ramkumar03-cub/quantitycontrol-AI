@@ -12,6 +12,7 @@ from dataset_manager import DatasetManager
 from history_manager import HistoryManager
 from database import get_db_connection, init_db
 import auth
+import training_engine
 
 # Initialize DB (ensure users table exists)
 init_db()
@@ -272,19 +273,6 @@ async def get_system_health():
 async def submit_feedback(feedback: dict):
     print(f"Received feedback: {feedback}")
     return {"status": "recorded", "message": "Feedback received and logged"}
-
-@app.get("/history")
-async def get_history():
-    return history_manager.get_history()
-
-from fastapi.responses import PlainTextResponse, StreamingResponse
-from report_generator import generate_pdf_report
-import io
-
-@app.get("/reports/generate")
-async def generate_report():
-    # Reuse analytics logic (simplified for now, ideally refactor to shared function)
-    conn = get_db_connection()
     
     # 1. Stats
     total = conn.execute("SELECT COUNT(*) FROM history").fetchone()[0]
@@ -392,3 +380,29 @@ async def websocket_endpoint_video(websocket: WebSocket):
     finally:
         if cap.isOpened():
             cap.release()
+
+@app.post("/ai/train")
+async def start_training(request: dict):
+    try:
+        profile_name = request.get("profile_name")
+        epochs = request.get("epochs", 50)
+        batch_size = request.get("batch_size", 32)
+        
+        if not profile_name:
+            return JSONResponse(status_code=400, content={"error": "Profile name required"})
+            
+        print(f"Starting training for {profile_name}...")
+        job_id = training_engine.start_training_job(profile_name, epochs, batch_size)
+        return {"job_id": job_id, "message": "Training started"}
+    except Exception as e:
+        print(f"Training Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.get("/ai/train/{job_id}")
+async def get_training_status(job_id: str):
+    status = training_engine.get_job_status(job_id)
+    if not status:
+        return JSONResponse(status_code=404, content={"error": "Job not found"})
+    return status

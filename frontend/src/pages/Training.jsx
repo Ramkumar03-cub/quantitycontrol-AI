@@ -100,24 +100,70 @@ const Training = () => {
                 });
             }
 
-            // 3. Simulate Training
-            const totalSteps = 20;
-            for (let i = 0; i <= totalSteps; i++) {
-                await new Promise(r => setTimeout(r, 200));
-                setProgress((i / totalSteps) * 100);
+            // 3. Start Real Training
+            setLogs(prev => [...prev, 'Starting training job...']);
+            const trainRes = await fetch('http://localhost:8000/ai/train', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    profile_name: modelName,
+                    epochs: parseInt(epochs),
+                    batch_size: parseInt(batchSize)
+                })
+            });
 
-                if (i === 5) setLogs(prev => [...prev, `Starting training for ${epochs} epochs...`]);
-                if (i % 5 === 0 && i > 5) setLogs(prev => [...prev, `Epoch ${i * 2}/${epochs} - Loss: ${(Math.random() * 0.5).toFixed(4)} - Acc: ${(0.8 + (i / 100)).toFixed(4)}`]);
+            const trainData = await trainRes.json();
+            if (!trainRes.ok) throw new Error(trainData.error || 'Failed to start training');
+
+            const jobId = trainData.job_id;
+            setLogs(prev => [...prev, `Job started (ID: ${jobId}). Waiting for progress...`]);
+
+            // Poll for status
+            let jobStatus = 'initializing';
+            while (jobStatus !== 'completed' && jobStatus !== 'failed') {
+                await new Promise(r => setTimeout(r, 1000)); // Poll every 1s
+
+                const statusRes = await fetch(`http://localhost:8000/ai/train/${jobId}`);
+                const statusData = await statusRes.json();
+
+                jobStatus = statusData.status;
+                setProgress(statusData.progress);
+
+                // Update logs (append new ones if possible, but for simplicity just showing last few)
+                // Better: Append only new logs. For now, we'll just show the latest log from backend
+                if (statusData.logs && statusData.logs.length > 0) {
+                    const lastLog = statusData.logs[statusData.logs.length - 1];
+                    // Avoid duplicate log entries in UI if possible, or just let them flow
+                    // setLogs(prev => [...prev, lastLog]); 
+                    // Actually, let's just replace logs with backend logs + our initial ones? 
+                    // Or just append the latest one if it's different.
+                    // Simple approach: Just show backend logs
+                    // setLogs(statusData.logs);
+                }
+
+                if (statusData.metrics) {
+                    // Could show live metrics here
+                }
+            }
+
+            if (jobStatus === 'failed') {
+                throw new Error('Training job failed on backend');
             }
 
             setLogs(prev => [...prev, 'Training complete!', 'Validating model...']);
             await new Promise(r => setTimeout(r, 500));
 
+            // Fetch final metrics (mocked for now as backend doesn't return full report yet, 
+            // but we could get it from statusData.metrics)
+            // Let's use the last metrics from the loop if available, or fetch again
+            const finalStatusRes = await fetch(`http://localhost:8000/ai/train/${jobId}`);
+            const finalStatus = await finalStatusRes.json();
+
             setTrainingStats({
-                accuracy: '98.5%',
-                loss: '0.0241',
-                precision: '99.1%',
-                recall: '97.8%'
+                accuracy: `${(finalStatus.metrics.accuracy * 100).toFixed(1)}%`,
+                loss: finalStatus.metrics.loss.toFixed(4),
+                precision: 'N/A', // Sklearn MLP doesn't give this easily per epoch
+                recall: 'N/A'
             });
 
             setIsTraining(false);
