@@ -13,6 +13,8 @@ from history_manager import HistoryManager
 from database import get_db_connection, init_db
 import auth
 import training_engine
+from fastapi.responses import StreamingResponse
+from report_generator import generate_pdf_report
 
 # Initialize DB (ensure users table exists)
 init_db()

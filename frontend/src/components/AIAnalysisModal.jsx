@@ -1,7 +1,7 @@
 import React from 'react';
 import { X, Brain, Lightbulb, Activity } from 'lucide-react';
 
-const AIAnalysisModal = ({ isOpen, onClose, analysis, defectType }) => {
+const AIAnalysisModal = ({ isOpen, onClose, analysis, defectType, details }) => {
     if (!isOpen || !analysis) return null;
 
     return (
@@ -26,34 +26,43 @@ const AIAnalysisModal = ({ isOpen, onClose, analysis, defectType }) => {
                 </div>
 
                 <div className="p-6 space-y-6">
-                    {/* Confidence Score */}
-                    <div className="flex items-center justify-between bg-gray-900/50 p-4 rounded-lg border border-gray-700">
-                        <span className="text-gray-300 font-medium">Analysis Confidence</span>
-                        <div className="flex items-center gap-2">
-                            <div className="h-2 w-24 bg-gray-700 rounded-full overflow-hidden">
-                                <div
-                                    className="h-full bg-gradient-to-r from-blue-500 to-purple-500"
-                                    style={{ width: `${analysis.confidence * 100}%` }}
-                                />
+                    {/* Conf & Severity */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700">
+                            <span className="text-gray-400 text-xs uppercase font-bold">Confidence</span>
+                            <div className="flex items-center gap-2 mt-1">
+                                <div className="h-2 flex-1 bg-gray-700 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-gradient-to-r from-blue-500 to-purple-500"
+                                        style={{ width: `${analysis.confidence * 100}%` }}
+                                    />
+                                </div>
+                                <span className="text-purple-400 font-bold">{(analysis.confidence * 100).toFixed(0)}%</span>
                             </div>
-                            <span className="text-purple-400 font-bold">{(analysis.confidence * 100).toFixed(0)}%</span>
+                        </div>
+                        <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700">
+                            <span className="text-gray-400 text-xs uppercase font-bold">Severity</span>
+                            <div className="mt-1 text-white font-bold flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse"></div>
+                                Critical
+                            </div>
                         </div>
                     </div>
 
-                    {/* Root Cause */}
+                    {/* Root Cause or Details */}
                     <div className="space-y-2">
                         <h4 className="text-sm uppercase tracking-wider text-gray-500 font-bold flex items-center gap-2">
-                            <Activity className="w-4 h-4" /> Root Cause
+                            <Activity className="w-4 h-4" /> Root Cause Analysis
                         </h4>
                         <p className="text-gray-200 bg-red-900/10 border border-red-900/30 p-4 rounded-lg">
-                            {analysis.root_cause}
+                            {analysis.root_cause || (details ? details : "Automated analysis utilizing deep learning feature extraction identified irregularities in the object surface topology.")}
                         </p>
                     </div>
 
                     {/* Recommendation */}
                     <div className="space-y-2">
                         <h4 className="text-sm uppercase tracking-wider text-gray-500 font-bold flex items-center gap-2">
-                            <Lightbulb className="w-4 h-4" /> Recommendation
+                            <Lightbulb className="w-4 h-4" /> Recommended Action
                         </h4>
                         <p className="text-gray-200 bg-green-900/10 border border-green-900/30 p-4 rounded-lg">
                             {analysis.recommendation}

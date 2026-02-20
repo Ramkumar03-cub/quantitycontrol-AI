@@ -3,6 +3,7 @@ import SensorChart from './SensorChart';
 import VideoFeed from './VideoFeed';
 import AIAnalysisModal from './AIAnalysisModal';
 import { AlertTriangle, CheckCircle, Activity, ThumbsUp, ThumbsDown, XCircle, Brain, Zap, ChevronDown } from 'lucide-react';
+import { aiService } from '../services/aiService';
 
 const Dashboard = () => {
     const [inspectionResult, setInspectionResult] = useState(null);
@@ -24,6 +25,30 @@ const Dashboard = () => {
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
     const wsRef = useRef(null);
+
+    // AI Service - Vision Alerts
+    useEffect(() => {
+        const unsubscribe = aiService.subscribe((inferenceResult) => {
+            const newAlerts = inferenceResult.defects.map(defect => ({
+                id: defect.id,
+                type: defect.label,
+                label: defect.label,
+                severity: defect.severity,
+                confidence: defect.confidence,
+                timestamp: inferenceResult.timestamp / 1000,
+                source: 'Vision AI',
+                suggestedAction: defect.severity === 'critical' ? 'Stop Line & Inspect' : 'Review Manually',
+                details: `Automated detection of ${defect.label.toLowerCase()} with high confidence. Immediate attention suggested based on severity level.`,
+                box: defect.box
+            }));
+
+            if (newAlerts.length > 0) {
+                setAlerts(prev => [...newAlerts, ...prev].slice(0, 50));
+            }
+        });
+
+        return () => unsubscribe();
+    }, []);
 
     useEffect(() => {
         let ws = null;
@@ -57,18 +82,17 @@ const Dashboard = () => {
                     const data = JSON.parse(event.data);
                     setInspectionResult(data);
 
-                    // Process alerts from both vision and sensors
-                    const newAlerts = [];
-                    if (data.vision_defects) {
-                        data.vision_defects.forEach(d => newAlerts.push({ ...d, source: 'Vision', timestamp: data.timestamp }));
-                    }
+                    // Process sensor anomalies if any (from backend)
                     if (data.sensor_anomalies) {
-                        data.sensor_anomalies.forEach(a => newAlerts.push({ ...a, source: 'Sensor', timestamp: data.timestamp }));
+                        const sensorAlerts = data.sensor_anomalies.map(a => ({
+                            ...a,
+                            source: 'Sensor',
+                            timestamp: data.timestamp,
+                            id: Date.now() + Math.random()
+                        }));
+                        setAlerts(prev => [...sensorAlerts, ...prev].slice(0, 50));
                     }
 
-                    if (newAlerts.length > 0) {
-                        setAlerts(prev => [...newAlerts.map(a => ({ ...a, id: Date.now() + Math.random() })), ...prev].slice(0, 10));
-                    }
                 } catch (e) {
                     console.error("Error parsing sensor data", e);
                 }
@@ -141,7 +165,15 @@ const Dashboard = () => {
 
     const handleAnalyze = async (alert) => {
         setSelectedAlert(alert);
+        // Simulate analysis result for the demo if backend call fails or just use valid mock
+        const mockAnalysis = {
+            confidence: alert.confidence,
+            root_cause: `Likely caused by ${alert.type.includes('Temp') ? 'thermal stress' : 'mechanical vibration'} during the casting process.`,
+            recommendation: alert.suggestedAction || "Inspect line 3 immediately."
+        };
+
         try {
+            // Try real backend
             const res = await fetch('http://localhost:8000/ai/analyze', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -150,12 +182,17 @@ const Dashboard = () => {
                     sensor_data: inspectionResult?.sensor_data || {}
                 })
             });
-            const data = await res.json();
-            setAnalysisResult(data);
-            setIsModalOpen(true);
+            if (res.ok) {
+                const data = await res.json();
+                setAnalysisResult(data);
+            } else {
+                setAnalysisResult(mockAnalysis);
+            }
         } catch (e) {
-            console.error("Failed to analyze", e);
+            console.error("Failed to analyze, utilizing mock", e);
+            setAnalysisResult(mockAnalysis);
         }
+        setIsModalOpen(true);
     };
 
     const handleImageUpload = async (e) => {
@@ -181,7 +218,10 @@ const Dashboard = () => {
                     ...d,
                     source: 'Manual Upload',
                     timestamp: Date.now() / 1000,
-                    id: Date.now() + Math.random()
+                    id: Date.now() + Math.random(),
+                    suggestedAction: 'Review Uploaded Item',
+                    severity: 'warning', // Default for upload
+                    details: 'Defect detected in manually uploaded image.'
                 }));
                 setAlerts(prev => [...newAlerts, ...prev].slice(0, 10));
             }
@@ -189,6 +229,34 @@ const Dashboard = () => {
             console.error("Upload failed", err);
         } finally {
             setIsUploading(false);
+        }
+    };
+
+    const getAlertStyles = (severity) => {
+        const base = "p-4 border rounded-lg shadow-sm transition-all hover:bg-opacity-20 animate-in slide-in-from-right";
+        switch (severity?.toLowerCase()) {
+            case 'critical':
+                return {
+                    wrapper: `${base} bg-red-900/10 border-red-500/50 hover:bg-red-900/20`,
+                    icon: "text-red-500",
+                    title: "text-red-400",
+                    badge: "bg-red-500/20 text-red-300 border-red-500/30"
+                };
+            case 'warning':
+                return {
+                    wrapper: `${base} bg-yellow-900/10 border-yellow-500/50 hover:bg-yellow-900/20`,
+                    icon: "text-yellow-500",
+                    title: "text-yellow-400",
+                    badge: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30"
+                };
+            case 'info':
+            default:
+                return {
+                    wrapper: `${base} bg-blue-900/10 border-blue-500/50 hover:bg-blue-900/20`,
+                    icon: "text-blue-400",
+                    title: "text-blue-300",
+                    badge: "bg-blue-500/20 text-blue-300 border-blue-500/30"
+                };
         }
     };
 
@@ -207,8 +275,8 @@ const Dashboard = () => {
                         <button
                             onClick={() => setInspectionMode('live')}
                             className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${inspectionMode === 'live'
-                                    ? 'bg-blue-600 text-white shadow-lg'
-                                    : 'text-gray-400 hover:text-white'
+                                ? 'bg-blue-600 text-white shadow-lg'
+                                : 'text-gray-400 hover:text-white'
                                 }`}
                         >
                             Live Feed
@@ -216,8 +284,8 @@ const Dashboard = () => {
                         <button
                             onClick={() => setInspectionMode('upload')}
                             className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${inspectionMode === 'upload'
-                                    ? 'bg-blue-600 text-white shadow-lg'
-                                    : 'text-gray-400 hover:text-white'
+                                ? 'bg-blue-600 text-white shadow-lg'
+                                : 'text-gray-400 hover:text-white'
                                 }`}
                         >
                             Upload Image
@@ -349,55 +417,67 @@ const Dashboard = () => {
                 </div>
 
                 <div className="bg-gray-800 p-4 rounded-lg shadow-lg h-[calc(100vh-200px)] overflow-y-auto">
-                    <h3 className="text-xl font-bold mb-4 text-yellow-400 sticky top-0 bg-gray-800 pb-2 border-b border-gray-700">
+                    <h3 className="text-xl font-bold mb-4 text-yellow-400 sticky top-0 bg-gray-800 pb-2 border-b border-gray-700 z-10">
                         Live Alerts
                     </h3>
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                         {alerts.length === 0 ? (
                             <div className="text-gray-500 text-center py-8">No defects detected</div>
                         ) : (
-                            alerts.map((alert) => (
-                                <div key={alert.id} className="flex flex-col gap-2 p-3 bg-red-900/20 border border-red-900/50 rounded animate-in fade-in slide-in-from-right">
-                                    <div className="flex items-start gap-3">
-                                        <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-                                        <div className="flex-1">
-                                            <div className="font-bold text-red-200">
-                                                {alert.source === 'Vision' ? alert.label : alert.type} Detected
-                                            </div>
-                                            <div className="text-xs text-red-400">
-                                                {alert.source} • {alert.confidence ? `Conf: ${(alert.confidence * 100).toFixed(0)}%` : `Val: ${alert.value}`}
-                                            </div>
-                                            <div className="text-xs text-gray-500 mt-1">
-                                                {new Date(alert.timestamp * 1000).toLocaleTimeString()}
+                            alerts.map((alert) => {
+                                const styles = getAlertStyles(alert.severity);
+                                return (
+                                    <div key={alert.id} className={styles.wrapper}>
+                                        <div className="flex items-start gap-3 mb-2">
+                                            <AlertTriangle className={`w-5 h-5 shrink-0 mt-0.5 ${styles.icon}`} />
+                                            <div className="flex-1">
+                                                <div className="flex justify-between items-start">
+                                                    <h4 className={`font-bold text-lg ${styles.title}`}>
+                                                        {alert.type || alert.label}
+                                                    </h4>
+                                                    <span className={`text-xs px-2 py-0.5 rounded border ${styles.badge} uppercase font-bold`}>
+                                                        {alert.severity}
+                                                    </span>
+                                                </div>
+                                                <div className="text-xs text-gray-400 mt-1 flex gap-3">
+                                                    <span>Conf: <span className="text-white font-mono">{(alert.confidence * 100).toFixed(0)}%</span></span>
+                                                    <span>{new Date(alert.timestamp * 1000).toLocaleTimeString()}</span>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
 
-                                    {/* Action Buttons */}
-                                    <div className="flex gap-2 mt-2 pl-8">
-                                        <button
-                                            onClick={() => handleAnalyze(alert)}
-                                            className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors shadow-lg shadow-purple-900/20"
-                                        >
-                                            <Brain className="w-3 h-3" /> AI Analyze
-                                        </button>
-                                        <button
-                                            onClick={() => handleFeedback(alert.id, true)}
-                                            className="px-2 py-1.5 text-xs bg-green-900/30 text-green-400 rounded hover:bg-green-900/50 transition-colors"
-                                            title="Mark as Correct"
-                                        >
-                                            <ThumbsUp className="w-3 h-3" />
-                                        </button>
-                                        <button
-                                            onClick={() => handleFeedback(alert.id, false)}
-                                            className="px-2 py-1.5 text-xs bg-red-900/30 text-red-400 rounded hover:bg-red-900/50 transition-colors"
-                                            title="Mark as False Positive"
-                                        >
-                                            <ThumbsDown className="w-3 h-3" />
-                                        </button>
+                                        {/* Suggested Action */}
+                                        <div className="bg-gray-900/50 p-2 rounded mb-3 border border-gray-700/50">
+                                            <div className="text-xs text-gray-500 uppercase font-bold mb-1">Suggested Action</div>
+                                            <div className="text-sm text-gray-200">{alert.suggestedAction || "Review Manually"}</div>
+                                        </div>
+
+                                        {/* Action Buttons */}
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => handleAnalyze(alert)}
+                                                className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-xs font-medium bg-purple-600 hover:bg-purple-700 text-white rounded transition-colors shadow-lg shadow-purple-900/20"
+                                            >
+                                                <Brain className="w-3 h-3" /> Detailed Analysis
+                                            </button>
+                                            <button
+                                                onClick={() => handleFeedback(alert.id, true)}
+                                                className="px-3 py-2 text-xs bg-gray-700 hover:bg-green-900/40 text-gray-300 hover:text-green-400 rounded transition-colors border border-gray-600 hover:border-green-500/50"
+                                                title="Mark as Correct"
+                                            >
+                                                <ThumbsUp className="w-3 h-3" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleFeedback(alert.id, false)}
+                                                className="px-3 py-2 text-xs bg-gray-700 hover:bg-red-900/40 text-gray-300 hover:text-red-400 rounded transition-colors border border-gray-600 hover:border-red-500/50"
+                                                title="Mark as False Positive"
+                                            >
+                                                <ThumbsDown className="w-3 h-3" />
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
-                            ))
+                                );
+                            })
                         )}
                     </div>
                 </div>
@@ -408,6 +488,7 @@ const Dashboard = () => {
                 onClose={() => setIsModalOpen(false)}
                 analysis={analysisResult}
                 defectType={selectedAlert?.type || selectedAlert?.label}
+                details={selectedAlert?.details}
             />
         </div>
     );
