@@ -311,6 +311,17 @@ async def export_history():
 async def root():
     return {"message": "Manufacturing QC AI System API"}
 
+@app.get("/history")
+async def get_history(limit: int = 100):
+    """Retrieve recent inspection history."""
+    try:
+        data = history_manager.get_history(limit=limit)
+        return data
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
 @app.websocket("/ws/sensors")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
