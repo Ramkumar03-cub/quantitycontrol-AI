@@ -11,6 +11,8 @@ const Training = () => {
     // Step 1: Upload State
     const [normalFiles, setNormalFiles] = useState([]);
     const [defectFiles, setDefectFiles] = useState([]);
+    const [zipFile, setZipFile] = useState(null);
+    const [uploadMode, setUploadMode] = useState('images'); // 'images' or 'zip'
 
     // Step 3: Training State
     const [modelName, setModelName] = useState('');
@@ -38,8 +40,10 @@ const Training = () => {
         const files = Array.from(e.target.files);
         if (type === 'normal') {
             setNormalFiles(prev => [...prev, ...files]);
-        } else {
+        } else if (type === 'defect') {
             setDefectFiles(prev => [...prev, ...files]);
+        } else if (type === 'zip') {
+            setZipFile(files[0] || null);
         }
     };
 
@@ -76,28 +80,44 @@ const Training = () => {
             });
 
             // 2. Upload Files
-            setLogs(prev => [...prev, `Uploading ${normalFiles.length} normal samples...`]);
-            for (const file of normalFiles) {
+            if (uploadMode === 'zip' && zipFile) {
+                setLogs(prev => [...prev, `Uploading ZIP dataset...`]);
                 const formData = new FormData();
-                formData.append('file', file);
+                formData.append('file', zipFile);
                 formData.append('profile_name', modelName);
-                formData.append('category', 'normal');
-                await fetch('http://localhost:8000/dataset/upload', {
+                
+                const res = await fetch('http://localhost:8000/dataset/upload_zip', {
                     method: 'POST',
                     body: formData
                 });
-            }
+                if (!res.ok) {
+                    const errStr = await res.text();
+                    throw new Error("ZIP Upload failed: " + errStr);
+                }
+            } else {
+                setLogs(prev => [...prev, `Uploading ${normalFiles.length} normal samples...`]);
+                for (const file of normalFiles) {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('profile_name', modelName);
+                    formData.append('category', 'normal');
+                    await fetch('http://localhost:8000/dataset/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+                }
 
-            setLogs(prev => [...prev, `Uploading ${defectFiles.length} defect samples...`]);
-            for (const file of defectFiles) {
-                const formData = new FormData();
-                formData.append('file', file);
-                formData.append('profile_name', modelName);
-                formData.append('category', 'defect');
-                await fetch('http://localhost:8000/dataset/upload', {
-                    method: 'POST',
-                    body: formData
-                });
+                setLogs(prev => [...prev, `Uploading ${defectFiles.length} defect samples...`]);
+                for (const file of defectFiles) {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('profile_name', modelName);
+                    formData.append('category', 'defect');
+                    await fetch('http://localhost:8000/dataset/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+                }
             }
 
             // 3. Start Real Training
@@ -257,49 +277,84 @@ const Training = () => {
                             />
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 flex-1">
-                            {/* Normal Samples */}
-                            <div className="flex flex-col">
-                                <label className="text-green-400 font-medium mb-3 flex items-center gap-2">
-                                    <CheckCircle className="w-4 h-4" />
-                                    Normal Samples (Good)
-                                </label>
-                                <div className="flex-1 border-2 border-dashed border-gray-600 rounded-xl bg-gray-900/50 hover:border-green-500/50 transition-colors relative group">
-                                    <input
-                                        type="file"
-                                        multiple
-                                        onChange={(e) => handleFileChange(e, 'normal')}
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                    />
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500">
-                                        <Upload className="w-8 h-8 mb-2 group-hover:text-green-400 transition-colors" />
-                                        <p>Drop good samples here</p>
-                                        <p className="text-xs mt-1">{normalFiles.length} files selected</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Defect Samples */}
-                            <div className="flex flex-col">
-                                <label className="text-red-400 font-medium mb-3 flex items-center gap-2">
-                                    <AlertCircle className="w-4 h-4" />
-                                    Defect Samples (Bad)
-                                </label>
-                                <div className="flex-1 border-2 border-dashed border-gray-600 rounded-xl bg-gray-900/50 hover:border-red-500/50 transition-colors relative group">
-                                    <input
-                                        type="file"
-                                        multiple
-                                        onChange={(e) => handleFileChange(e, 'defect')}
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                    />
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500">
-                                        <Upload className="w-8 h-8 mb-2 group-hover:text-red-400 transition-colors" />
-                                        <p>Drop defect samples here</p>
-                                        <p className="text-xs mt-1">{defectFiles.length} files selected</p>
-                                    </div>
-                                </div>
-                            </div>
+                        <div className="mb-4 flex space-x-4">
+                            <button 
+                                onClick={() => setUploadMode('images')}
+                                className={`px-4 py-2 rounded-lg font-medium transition-colors ${uploadMode === 'images' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+                                Individual Images
+                            </button>
+                            <button 
+                                onClick={() => setUploadMode('zip')}
+                                className={`px-4 py-2 rounded-lg font-medium transition-colors ${uploadMode === 'zip' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}>
+                                YOLOv8 ZIP Dataset
+                            </button>
                         </div>
+
+                        {uploadMode === 'images' ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 flex-1">
+                                {/* Normal Samples */}
+                                <div className="flex flex-col">
+                                    <label className="text-green-400 font-medium mb-3 flex items-center gap-2">
+                                        <CheckCircle className="w-4 h-4" />
+                                        Normal Samples (Good)
+                                    </label>
+                                    <div className="flex-1 border-2 border-dashed border-gray-600 rounded-xl bg-gray-900/50 hover:border-green-500/50 transition-colors relative group">
+                                        <input
+                                            type="file"
+                                            multiple
+                                            onChange={(e) => handleFileChange(e, 'normal')}
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                        />
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500">
+                                            <Upload className="w-8 h-8 mb-2 group-hover:text-green-400 transition-colors" />
+                                            <p>Drop good samples here</p>
+                                            <p className="text-xs mt-1">{normalFiles.length} files selected</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Defect Samples */}
+                                <div className="flex flex-col">
+                                    <label className="text-red-400 font-medium mb-3 flex items-center gap-2">
+                                        <AlertCircle className="w-4 h-4" />
+                                        Defect Samples (Bad)
+                                    </label>
+                                    <div className="flex-1 border-2 border-dashed border-gray-600 rounded-xl bg-gray-900/50 hover:border-red-500/50 transition-colors relative group">
+                                        <input
+                                            type="file"
+                                            multiple
+                                            onChange={(e) => handleFileChange(e, 'defect')}
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                        />
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500">
+                                            <Upload className="w-8 h-8 mb-2 group-hover:text-red-400 transition-colors" />
+                                            <p>Drop defect samples here</p>
+                                            <p className="text-xs mt-1">{defectFiles.length} files selected</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col flex-1">
+                                <label className="text-blue-400 font-medium mb-3 flex items-center gap-2">
+                                    <Database className="w-4 h-4" />
+                                    YOLOv8 Zip Dataset
+                                </label>
+                                <div className="flex-1 border-2 border-dashed border-gray-600 rounded-xl bg-gray-900/50 hover:border-blue-500/50 transition-colors relative group">
+                                    <input
+                                        type="file"
+                                        accept=".zip"
+                                        onChange={(e) => handleFileChange(e, 'zip')}
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                    />
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500">
+                                        <Upload className="w-8 h-8 mb-2 group-hover:text-blue-400 transition-colors" />
+                                        <p>Drop your YOLOv8 dataset .zip here</p>
+                                        <p className="text-xs mt-1 text-blue-300 font-bold">{zipFile ? zipFile.name : 'No file selected'}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 

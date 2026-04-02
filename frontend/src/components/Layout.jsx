@@ -22,11 +22,11 @@ const Layout = ({ children }) => {
     };
 
     return (
-        <div className="flex h-screen bg-gray-900 text-white overflow-hidden">
+        <div className="flex h-screen bg-transparent text-white overflow-hidden">
             {/* Sidebar */}
             <aside
                 className={`${isSidebarOpen ? 'w-64' : 'w-20'
-                    } bg-gray-800 border-r border-gray-700 transition-all duration-300 flex flex-col`}
+                    } glass-panel border-r border-white/10 transition-all duration-300 flex flex-col z-20`}
             >
                 <div className="p-4 flex items-center justify-between border-b border-gray-700 h-16">
                     {isSidebarOpen && (
@@ -51,9 +51,9 @@ const Layout = ({ children }) => {
                             <Link
                                 key={item.path}
                                 to={item.path}
-                                className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${isActive
-                                    ? 'bg-blue-600/20 text-blue-400 border border-blue-600/30'
-                                    : 'text-gray-400 hover:bg-gray-700/50 hover:text-gray-200'
+                                className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ${isActive
+                                    ? 'bg-blue-600/30 text-blue-300 border border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.3)]'
+                                    : 'text-gray-400 hover:bg-white/5 hover:text-white hover:border-white/10 border border-transparent'
                                     }`}
                             >
                                 <Icon className="w-5 h-5 shrink-0" />
@@ -79,7 +79,7 @@ const Layout = ({ children }) => {
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-auto bg-gray-900 relative">
+            <main className="flex-1 overflow-auto bg-transparent relative z-10">
                 <div className="p-6 max-w-7xl mx-auto">
                     {children}
                 </div>

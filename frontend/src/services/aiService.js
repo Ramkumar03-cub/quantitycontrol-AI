@@ -54,7 +54,7 @@ class AIService {
         this.mockInterval = setInterval(() => {
             const result = this.generateMockInference();
             this.notifySubscribers(result);
-        }, 100); // 10fps simulation
+        }, 3000); // 1 update every 3 seconds
     }
 
     stopMockGenerator() {
@@ -77,7 +77,7 @@ class AIService {
 
             for (let i = 0; i < count; i++) {
                 const severity = Math.random() > 0.6 ? 'critical' : (Math.random() > 0.3 ? 'warning' : 'pass');
-                const label = severity === 'critical' ? 'Crack' : (severity === 'warning' ? 'Scratch' : 'Surface OK');
+                const label = severity === 'critical' ? 'Bad Weld' : (severity === 'warning' ? 'Defect' : 'Good Weld');
 
                 defects.push({
                     id: Date.now() + i,

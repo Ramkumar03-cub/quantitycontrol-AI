@@ -141,6 +141,7 @@ async def load_dataset(config: DatasetConfig):
     profile = dataset_manager.load_profile(config.profile_name)
     # Update CV Engine with the specific defects from the dataset
     cv_engine.defect_types = profile["defects"]
+    cv_engine.load_profile_model(config.profile_name)
     # Update AI Context as well
     ai_engine.update_context(config.profile_name, "Specific Material") 
     return {"message": f"Loaded dataset profile: {config.profile_name}", "profile": profile}
@@ -171,6 +172,24 @@ async def upload_training_images(
     else:
         return {"error": message}, 400
 
+@app.post("/dataset/upload_zip")
+async def upload_zip_dataset(
+    file: UploadFile = File(...),
+    profile_name: str = Form(...)
+):
+    from fastapi.responses import JSONResponse
+    if not file.filename.endswith('.zip'):
+        return JSONResponse(status_code=400, content={"error": "Must be a ZIP file"})
+        
+    contents = await file.read()
+    success, message, yaml_path = dataset_manager.extract_zip_dataset(profile_name, contents)
+    
+    if success:
+        return {"message": message, "yaml_path": yaml_path}
+    else:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=400, content={"error": message})
+
 import base64
 import numpy as np
 
@@ -186,13 +205,27 @@ async def inspect_uploaded_image(file: UploadFile = File(...)):
     # Process using the same engine as video feed
     jpeg_bytes, detections = cv_engine.process_frame(frame)
     
+    # Evaluate severity
+    is_defect = any(d.get("severity") != "pass" for d in detections)
+    status = "FAIL" if is_defect else "PASS"
+    reason = "Defect detected in uploaded image" if is_defect else "No defects identified"
+
+    # Persist log to SQLite DB
+    history_manager.add_record({
+        "status": status,
+        "final_decision_reason": reason,
+        "sensor_data": {},
+        "vision_defects": detections
+    })
+    
     # Encode to base64 for frontend display
     b64_image = base64.b64encode(jpeg_bytes).decode('utf-8')
     
     return {
         "detections": detections,
         "image": f"data:image/jpeg;base64,{b64_image}",
-        "count": len(detections)
+        "count": len(detections),
+        "is_defect": is_defect
     }
 
 @app.post("/ai/analyze")

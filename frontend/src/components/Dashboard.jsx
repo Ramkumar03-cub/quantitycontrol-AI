@@ -18,6 +18,7 @@ const Dashboard = () => {
     const [uploadedImage, setUploadedImage] = useState(null);
     const [uploadResult, setUploadResult] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
 
     // Model Selection State
     const [profiles, setProfiles] = useState([]);
@@ -59,9 +60,17 @@ const Dashboard = () => {
         fetch('http://localhost:8000/dataset/profiles')
             .then(res => res.json())
             .then(data => {
-                if (isMounted) {
+                if (isMounted && data.profiles && data.profiles.length > 0) {
                     setProfiles(data.profiles);
-                    // Optionally fetch current active profile if API supported it
+                    // Automatically load the first valid model on startup
+                    const defaultProfile = data.profiles[0];
+                    setActiveProfile(defaultProfile);
+
+                    fetch('http://localhost:8000/dataset/load', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ profile_name: defaultProfile })
+                    }).catch(err => console.error("Auto-load failed", err));
                 }
             })
             .catch(err => console.error("Failed to load profiles", err));
@@ -196,7 +205,15 @@ const Dashboard = () => {
     };
 
     const handleImageUpload = async (e) => {
-        const file = e.target.files[0];
+        let file = null;
+        if (e.target && e.target.files && e.target.files.length > 0) {
+            file = e.target.files[0];
+        } else if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            file = e.dataTransfer.files[0];
+        } else {
+            file = e; // Direct file pass
+        }
+
         if (!file) return;
 
         setIsUploading(true);
@@ -214,13 +231,14 @@ const Dashboard = () => {
 
             // Add to alerts if defects found
             if (data.detections && data.detections.length > 0) {
-                const newAlerts = data.detections.map(d => ({
+                const defectDetections = data.detections.filter(d => d.severity !== 'pass');
+                const newAlerts = defectDetections.map(d => ({
                     ...d,
                     source: 'Manual Upload',
                     timestamp: Date.now() / 1000,
                     id: Date.now() + Math.random(),
-                    suggestedAction: 'Review Uploaded Item',
-                    severity: 'warning', // Default for upload
+                    suggestedAction: d.severity === 'critical' ? 'Stop & Inspect immediately' : 'Review Uploaded Item',
+                    severity: d.severity || 'warning',
                     details: 'Defect detected in manually uploaded image.'
                 }));
                 setAlerts(prev => [...newAlerts, ...prev].slice(0, 10));
@@ -229,6 +247,27 @@ const Dashboard = () => {
             console.error("Upload failed", err);
         } finally {
             setIsUploading(false);
+        }
+    };
+
+    const onDragOver = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+    };
+
+    const onDragLeave = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+    };
+
+    const onDrop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            handleImageUpload(e.dataTransfer.files[0]);
         }
     };
 
@@ -271,7 +310,7 @@ const Dashboard = () => {
                 </div>
                 <div className="flex items-center gap-4">
                     {/* Inspection Mode Toggle */}
-                    <div className="bg-gray-800 p-1 rounded-lg flex border border-gray-700">
+                    <div className="glass-panel p-1 rounded-xl flex border border-white/10">
                         <button
                             onClick={() => setInspectionMode('live')}
                             className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${inspectionMode === 'live'
@@ -295,7 +334,7 @@ const Dashboard = () => {
                     <div className="relative">
                         <button
                             onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                            className="flex items-center gap-2 px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 transition-colors text-white min-w-[160px] justify-between"
+                            className="flex items-center gap-2 px-4 py-2 glass-panel hover:bg-white/5 active:scale-95 transition-all text-white min-w-[160px] justify-between rounded-xl"
                         >
                             <div className="flex items-center gap-2">
                                 <Brain className="w-4 h-4 text-blue-400" />
@@ -305,8 +344,8 @@ const Dashboard = () => {
                         </button>
 
                         {isProfileMenuOpen && (
-                            <div className="absolute top-full right-0 mt-2 w-56 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50 overflow-hidden">
-                                <div className="p-2 border-b border-gray-700 text-xs text-gray-500 font-medium uppercase">
+                            <div className="absolute top-full right-0 mt-2 w-56 glass-panel rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] z-50 overflow-hidden backdrop-blur-xl bg-black/40">
+                                <div className="p-2 border-b border-white/10 text-xs text-blue-400 font-bold uppercase tracking-wider text-center">
                                     Select Active Model
                                 </div>
                                 <div className="max-h-64 overflow-y-auto">
@@ -328,7 +367,7 @@ const Dashboard = () => {
 
                     {/* System Health Widget */}
                     {systemHealth && (
-                        <div className={`px-4 py-2 rounded-lg border flex items-center gap-3 ${systemHealth.status === 'Healthy' ? 'bg-green-900/20 border-green-500/30' : 'bg-yellow-900/20 border-yellow-500/30'
+                        <div className={`px-4 py-2 rounded-xl glass-panel flex items-center gap-3 ${systemHealth.status === 'Healthy' ? 'shadow-[0_0_15px_rgba(16,185,129,0.15)] border-green-500/30' : 'shadow-[0_0_15px_rgba(234,179,8,0.15)] border-yellow-500/30'
                             }`}>
                             <div className="text-right">
                                 <div className={`text-xs uppercase font-bold ${systemHealth.status === 'Healthy' ? 'text-green-400' : 'text-yellow-400'
@@ -364,19 +403,36 @@ const Dashboard = () => {
                             <SensorChart data={inspectionResult?.sensor_data} />
                         </>
                     ) : (
-                        <div className="bg-gray-800 rounded-xl border border-gray-700 p-6 min-h-[500px] flex flex-col">
-                            <h3 className="text-xl font-bold text-white mb-4">Manual Image Inspection</h3>
+                        <div className="glass-panel rounded-2xl p-6 min-h-[500px] flex flex-col relative overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
+                            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><Brain className="w-5 h-5 text-blue-400" /> Manual Image Inspection</h3>
 
-                            <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-gray-600 rounded-xl bg-gray-900/50 relative overflow-hidden group">
-                                {uploadedImage ? (
-                                    <img src={uploadedImage} alt="Analyzed" className="max-h-[400px] object-contain" />
-                                ) : (
+                            <div
+                                className={`flex-1 flex flex-col items-center justify-center border-2 border-dashed rounded-xl bg-black/20 backdrop-blur-sm relative overflow-hidden group transition-all duration-300 ease-in-out ${isDragging ? 'border-blue-500 bg-blue-900/20 scale-[1.02] shadow-[0_0_30px_rgba(59,130,246,0.2)]' : 'border-white/20 hover:border-blue-500/50 hover:bg-white/5'}`}
+                                onDragOver={onDragOver}
+                                onDragLeave={onDragLeave}
+                                onDrop={onDrop}
+                            >
+                                {isUploading ? (
                                     <div className="text-center p-8">
-                                        <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                                            <Brain className="w-8 h-8 text-gray-500" />
+                                        <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                                        <p className="text-blue-400 font-bold">Analyzing Component...</p>
+                                    </div>
+                                ) : uploadedImage ? (
+                                    <>
+                                        <img src={uploadedImage} alt="Analyzed" className="max-h-[400px] object-contain" />
+                                        <div className="absolute inset-0 bg-black/60 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity z-20 pointer-events-none">
+                                            <p className="text-white font-bold pointer-events-none">Drag & Drop Another Image</p>
                                         </div>
-                                        <p className="text-gray-400 mb-2">Upload an image to inspect</p>
-                                        <p className="text-xs text-gray-600">Supports JPG, PNG</p>
+                                    </>
+                                ) : (
+                                    <div className="text-center p-8 pointer-events-none">
+                                        <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                                            <Brain className={`w-8 h-8 transition-colors ${isDragging ? 'text-blue-400' : 'text-gray-500'}`} />
+                                        </div>
+                                        <p className={`text-xl font-bold mb-2 ${isDragging ? 'text-blue-400' : 'text-gray-300'}`}>
+                                            {isDragging ? 'Drop Image Here!' : 'Drag & Drop to Inspect'}
+                                        </p>
+                                        <p className="text-sm text-gray-500">Supports JPG, PNG</p>
                                     </div>
                                 )}
 
@@ -384,7 +440,7 @@ const Dashboard = () => {
                                     type="file"
                                     accept="image/*"
                                     onChange={handleImageUpload}
-                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                                 />
                             </div>
 
@@ -397,13 +453,13 @@ const Dashboard = () => {
                                     <div className="bg-gray-900 p-4 rounded-lg border border-gray-700 col-span-2">
                                         <p className="text-gray-500 text-xs uppercase mb-2">Result Details</p>
                                         <div className="flex flex-wrap gap-2">
-                                            {uploadResult.detections.length === 0 ? (
+                                            {uploadResult.detections.filter(d => d.severity !== 'pass').length === 0 ? (
                                                 <span className="text-green-400 text-sm flex items-center gap-1">
                                                     <CheckCircle className="w-4 h-4" /> No Defects Found
                                                 </span>
                                             ) : (
                                                 uploadResult.detections.map((d, i) => (
-                                                    <span key={i} className="bg-red-900/30 text-red-400 px-2 py-1 rounded text-sm border border-red-900/50">
+                                                    <span key={i} className={`px-2 py-1 rounded text-sm border ${d.severity === 'pass' ? 'bg-green-900/30 text-green-400 border-green-900/50' : 'bg-red-900/30 text-red-400 border-red-900/50'}`}>
                                                         {d.type} ({(d.confidence * 100).toFixed(0)}%)
                                                     </span>
                                                 ))
@@ -416,15 +472,21 @@ const Dashboard = () => {
                     )}
                 </div>
 
-                <div className="bg-gray-800 p-4 rounded-lg shadow-lg h-[calc(100vh-200px)] overflow-y-auto">
-                    <h3 className="text-xl font-bold mb-4 text-yellow-400 sticky top-0 bg-gray-800 pb-2 border-b border-gray-700 z-10">
-                        Live Alerts
+                <div className="glass-panel p-4 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.3)] h-[calc(100vh-200px)] overflow-y-auto custom-scrollbar relative">
+                    <h3 className="text-xl font-bold mb-4 text-blue-300 sticky top-0 bg-transparent backdrop-blur-md pb-2 border-b border-white/10 z-10 glow-text flex items-center gap-2">
+                        <Activity className="w-5 h-5" /> Live Alerts
                     </h3>
                     <div className="space-y-4">
-                        {alerts.length === 0 ? (
-                            <div className="text-gray-500 text-center py-8">No defects detected</div>
-                        ) : (
-                            alerts.map((alert) => {
+                        {(() => {
+                            const filteredAlerts = alerts.filter(alert =>
+                                inspectionMode === 'live' ? alert.source !== 'Manual Upload' : alert.source === 'Manual Upload'
+                            );
+
+                            if (filteredAlerts.length === 0) {
+                                return <div className="text-gray-500 text-center py-8">No {inspectionMode === 'live' ? 'live ' : 'uploaded '}defects to review</div>;
+                            }
+
+                            return filteredAlerts.map((alert) => {
                                 const styles = getAlertStyles(alert.severity);
                                 return (
                                     <div key={alert.id} className={styles.wrapper}>
@@ -477,8 +539,8 @@ const Dashboard = () => {
                                         </div>
                                     </div>
                                 );
-                            })
-                        )}
+                            });
+                        })()}
                     </div>
                 </div>
             </div>

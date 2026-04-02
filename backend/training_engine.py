@@ -1,7 +1,5 @@
 import os
 import numpy as np
-from PIL import Image
-from sklearn.neural_network import MLPClassifier
 import pickle
 import time
 import threading
@@ -45,6 +43,7 @@ class TrainingJob:
             for file in files:
                 if file.lower().endswith(('.png', '.jpg', '.jpeg')):
                     try:
+                        from PIL import Image
                         img_path = os.path.join(cat_dir, file)
                         img = Image.open(img_path).convert('L') # Grayscale
                         img = img.resize((64, 64)) # Resize
@@ -63,6 +62,52 @@ class TrainingJob:
     def _run_training(self):
         try:
             self.status = "training"
+            
+            # Check for YOLO data.yaml
+            data_dir = os.path.join("data", self.profile_name)
+            yaml_path = None
+            if os.path.exists(data_dir):
+                for root, dirs, files in os.walk(data_dir):
+                    if 'data.yaml' in files:
+                        yaml_path = os.path.join(root, 'data.yaml')
+                        break
+                        
+            if yaml_path:
+                self.log(f"Found YOLO data.yaml at {yaml_path}. Starting YOLOv8 training...")
+                from ultralytics import YOLO
+                
+                self.model = YOLO('yolov8n.pt')
+                self.progress = 20
+                self.log(f"Training YOLOv8 for {self.epochs} epochs...")
+                
+                model_dir = "models"
+                if not os.path.exists(model_dir):
+                    os.makedirs(model_dir)
+
+                # Train
+                try:
+                    results = self.model.train(
+                        data=yaml_path,
+                        epochs=self.epochs,
+                        imgsz=640,
+                        project=model_dir,
+                        name=self.profile_name,
+                        exist_ok=True, # overwrite existing
+                        batch=self.batch_size,
+                        verbose=False
+                    )
+                    self.progress = 100
+                    self.status = "completed"
+                    self.log("YOLOv8 Training completed successfully. Model saved to " + os.path.join(model_dir, self.profile_name, "weights", "best.pt"))
+                except Exception as e:
+                    self.status = "failed"
+                    self.error = str(e)
+                    self.log(f"YOLO Training failed: {e}")
+                    import traceback
+                    traceback.print_exc()
+                return
+
+            # --- Legacy Image Classification (MLP) Fallback ---
             X, y = self.load_data()
             
             if len(X) == 0:
@@ -70,6 +115,7 @@ class TrainingJob:
                 
             self.log(f"Data loaded. Shape: {X.shape}")
             
+            from sklearn.neural_network import MLPClassifier
             # Initialize Model
             self.model = MLPClassifier(
                 hidden_layer_sizes=(100, 50), 

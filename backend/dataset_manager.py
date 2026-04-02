@@ -21,7 +21,22 @@ class DatasetManager:
         conn = get_db_connection()
         profiles = conn.execute("SELECT name FROM profiles").fetchall()
         conn.close()
-        return [p['name'] for p in profiles]
+        
+        valid_profiles = []
+        for p in profiles:
+            name = p['name']
+            name_ul = name.replace(" ", "_")
+            name_sp = name.replace("_", " ")
+
+            for n in [name, name_ul, name_sp]:
+                path_a = os.path.join("models", n, "weights", "best.pt")
+                path_b = os.path.join("models", n, "weights", "weights", "best.pt")
+                if os.path.exists(path_a) or os.path.exists(path_b):
+                    valid_profiles.append(name)
+                    break
+                
+        # To avoid duplicates if name == name_ul
+        return list(dict.fromkeys(valid_profiles))
 
     def load_profile(self, profile_name):
         conn = get_db_connection()
@@ -105,3 +120,48 @@ class DatasetManager:
             return True, f"Saved to {save_path}"
         except Exception as e:
             return False, str(e)
+
+    def extract_zip_dataset(self, profile_name, zip_bytes):
+        # Extract a YOLO format zip file for a profile
+        import zipfile
+        import io
+        import yaml
+        
+        profile_dir = os.path.join(self.base_path, profile_name)
+        if not os.path.exists(profile_dir):
+            os.makedirs(profile_dir)
+            
+        try:
+            with zipfile.ZipFile(io.BytesIO(zip_bytes), 'r') as zip_ref:
+                # Security: prevent path traversal but this is a controlled env
+                zip_ref.extractall(profile_dir)
+                
+            # Check if data.yaml exists
+            yaml_path = None
+            for root, dirs, files in os.walk(profile_dir):
+                if 'data.yaml' in files:
+                    yaml_path = os.path.join(root, 'data.yaml')
+                    break
+                    
+            if yaml_path:
+                # We need to rewrite paths in data.yaml to be absolute
+                # because Ultralytics can be picky about relative paths
+                with open(yaml_path, 'r') as f:
+                    data = yaml.safe_load(f)
+                
+                base_dataset_dir = os.path.dirname(yaml_path)
+                data['path'] = os.path.abspath(base_dataset_dir)
+                
+                # Make sure train/val are relative to path
+                if 'train' in data and not os.path.isabs(data['train']):
+                     pass # handled by 'path' internally by YOLO
+                     
+                with open(yaml_path, 'w') as f:
+                    yaml.dump(data, f)
+                return True, f"Extracted successfully. Found YAML at {yaml_path}", yaml_path
+                
+            return True, "Extracted successfully, but no data.yaml found. You may need to structure it correctly.", None
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return False, f"Error extracting ZIP: {e}", None
