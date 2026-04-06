@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "D:\projects\QC AI\backend\main.py", line 29, in startup_event
+    await app_state.dataset_manager.initialize()
+  File "D:\projects\QC AI\backend\dataset_manager.py", line 15, in initialize
+    self.current_profile_data = await self.load_profile("Generic")
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\projects\QC AI\backend\dataset_manager.py", line 44, in load_profile
+    async with await get_db_connection() as conn:
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: object _AsyncGeneratorContextManager can't be used in 'await' expression

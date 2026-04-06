@@ -7,33 +7,29 @@ from database import get_db_connection
 
 class HistoryManager:
     def __init__(self):
-        pass # DB is initialized in database.py
+        pass
 
-    def add_record(self, record: Dict):
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
+    async def add_record(self, record: Dict):
         if 'timestamp' not in record:
             record['timestamp'] = time.time()
 
-        cursor.execute('''
-            INSERT INTO history (timestamp, status, final_decision_reason, sensor_data, vision_defects)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (
-            record['timestamp'],
-            record['status'],
-            record.get('final_decision_reason', ''),
-            json.dumps(record.get('sensor_data', {})),
-            json.dumps(record.get('vision_defects', []))
-        ))
-        
-        conn.commit()
-        conn.close()
+        async with get_db_connection() as conn:
+            await conn.execute('''
+                INSERT INTO history (timestamp, status, final_decision_reason, sensor_data, vision_defects)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (
+                record['timestamp'],
+                record['status'],
+                record.get('final_decision_reason', ''),
+                json.dumps(record.get('sensor_data', {})),
+                json.dumps(record.get('vision_defects', []))
+            ))
+            await conn.commit()
 
-    def get_history(self, limit=100):
-        conn = get_db_connection()
-        rows = conn.execute("SELECT * FROM history ORDER BY timestamp DESC LIMIT ?", (limit,)).fetchall()
-        conn.close()
+    async def get_history(self, limit=100):
+        async with get_db_connection() as conn:
+            async with conn.execute("SELECT * FROM history ORDER BY timestamp DESC LIMIT ?", (limit,)) as cursor:
+                rows = await cursor.fetchall()
         
         history = []
         for row in rows:
@@ -47,16 +43,15 @@ class HistoryManager:
             })
         return history
 
-    def export_csv(self):
-        conn = get_db_connection()
-        rows = conn.execute("SELECT * FROM history ORDER BY timestamp DESC").fetchall()
-        conn.close()
+    async def export_csv(self):
+        async with get_db_connection() as conn:
+            async with conn.execute("SELECT * FROM history ORDER BY timestamp DESC") as cursor:
+                rows = await cursor.fetchall()
         
         if not rows:
             return ""
         
         output = io.StringIO()
-        # Define headers manually for cleaner CSV
         headers = ["id", "timestamp", "status", "reason", "temperature", "vibration", "pressure"]
         writer = csv.DictWriter(output, fieldnames=headers)
         writer.writeheader()

@@ -9,7 +9,10 @@ class DatasetManager:
             os.makedirs(self.base_path)
         
         self.current_profile_name = "Generic"
-        self.current_profile_data = self.load_profile("Generic")
+        self.current_profile_data = None
+
+    async def initialize(self):
+        self.current_profile_data = await self.load_profile("Generic")
 
     def _ensure_profile_dirs(self, profile_name):
         for category in ["normal", "defect"]:
@@ -17,10 +20,10 @@ class DatasetManager:
             if not os.path.exists(path):
                 os.makedirs(path)
 
-    def get_profiles(self):
-        conn = get_db_connection()
-        profiles = conn.execute("SELECT name FROM profiles").fetchall()
-        conn.close()
+    async def get_profiles(self):
+        async with get_db_connection() as conn:
+            async with conn.execute("SELECT name FROM profiles") as cursor:
+                profiles = await cursor.fetchall()
         
         valid_profiles = []
         for p in profiles:
@@ -35,24 +38,22 @@ class DatasetManager:
                     valid_profiles.append(name)
                     break
                 
-        # To avoid duplicates if name == name_ul
         return list(dict.fromkeys(valid_profiles))
 
-    def load_profile(self, profile_name):
-        conn = get_db_connection()
-        profile = conn.execute("SELECT * FROM profiles WHERE name = ?", (profile_name,)).fetchone()
-        
-        if not profile:
-            # Fallback to Generic if not found
-            profile = conn.execute("SELECT * FROM profiles WHERE name = 'Generic'").fetchone()
+    async def load_profile(self, profile_name):
+        async with get_db_connection() as conn:
+            async with conn.execute("SELECT * FROM profiles WHERE name = ?", (profile_name,)) as cursor:
+                profile = await cursor.fetchone()
+            
             if not profile:
-                conn.close()
-                return None # Should not happen if migrated correctly
-            profile_name = "Generic"
+                async with conn.execute("SELECT * FROM profiles WHERE name = 'Generic'") as cursor:
+                    profile = await cursor.fetchone()
+                if not profile:
+                    return None
+                profile_name = "Generic"
 
-        # Get defects
-        defects = conn.execute("SELECT name FROM defects WHERE profile_id = ?", (profile['id'],)).fetchall()
-        conn.close()
+            async with conn.execute("SELECT name FROM defects WHERE profile_id = ?", (profile['id'],)) as cursor:
+                defects = await cursor.fetchall()
 
         self.current_profile_name = profile['name']
         self.current_profile_data = {
@@ -63,28 +64,24 @@ class DatasetManager:
         return self.current_profile_data
 
     def get_current_defects(self):
-        return self.current_profile_data["defects"]
+        return self.current_profile_data["defects"] if self.current_profile_data else []
 
-    def create_profile(self, name: str, defects: list, good_criteria: str):
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
+    async def create_profile(self, name: str, defects: list, good_criteria: str):
         try:
-            # Insert Profile
-            cursor.execute(
-                "INSERT INTO profiles (name, good_criteria, thresholds) VALUES (?, ?, ?)",
-                (name, good_criteria, json.dumps({"confidence": 0.88}))
-            )
-            profile_id = cursor.lastrowid
-            
-            # Insert Defects
-            for defect in defects:
-                cursor.execute(
-                    "INSERT INTO defects (profile_id, name) VALUES (?, ?)",
-                    (profile_id, defect)
-                )
-            conn.commit()
-            
+            async with get_db_connection() as conn:
+                async with conn.execute(
+                    "INSERT INTO profiles (name, good_criteria, thresholds) VALUES (?, ?, ?)",
+                    (name, good_criteria, json.dumps({"confidence": 0.88}))
+                ) as cursor:
+                    profile_id = cursor.lastrowid
+                
+                for defect in defects:
+                    await conn.execute(
+                        "INSERT INTO defects (profile_id, name) VALUES (?, ?)",
+                        (profile_id, defect)
+                    )
+                await conn.commit()
+                
             self._ensure_profile_dirs(name)
             
             return {
@@ -95,14 +92,11 @@ class DatasetManager:
         except Exception as e:
             print(f"Error creating profile: {e}")
             return None
-        finally:
-            conn.close()
 
-    def save_image(self, profile_name, category, file_data, filename):
-        # Verify profile exists
-        conn = get_db_connection()
-        exists = conn.execute("SELECT 1 FROM profiles WHERE name = ?", (profile_name,)).fetchone()
-        conn.close()
+    async def save_image(self, profile_name, category, file_data, filename):
+        async with get_db_connection() as conn:
+            async with conn.execute("SELECT 1 FROM profiles WHERE name = ?", (profile_name,)) as cursor:
+                exists = await cursor.fetchone()
 
         if not exists:
             return False, "Profile not found"
@@ -110,7 +104,6 @@ class DatasetManager:
         if category not in ["normal", "defect"]:
             return False, "Invalid category"
 
-        # Ensure dirs exist (just in case)
         self._ensure_profile_dirs(profile_name)
 
         save_path = os.path.join(self.base_path, profile_name, category, filename)
@@ -165,3 +158,24 @@ class DatasetManager:
             import traceback
             traceback.print_exc()
             return False, f"Error extracting ZIP: {e}", None
+
+    async def save_labels(self, profile_name: str, filename: str, labels: list):
+        # filename is like "image1.jpg". We need to save "image1.txt" in defect folder.
+        # Format: <classId> <xCenter> <yCenter> <width> <height>
+        txt_filename = os.path.splitext(filename)[0] + ".txt"
+        save_path = os.path.join(self.base_path, profile_name, "defect", txt_filename)
+        
+        try:
+            with open(save_path, "w") as f:
+                for lbl in labels:
+                    # Defaulting classId to 0, which corresponds to "Defect" class in our custom yaml
+                    class_id = lbl.get("classId", 0)
+                    x = lbl.get("xCenter", 0)
+                    y = lbl.get("yCenter", 0)
+                    w = lbl.get("width", 0)
+                    h = lbl.get("height", 0)
+                    f.write(f"{class_id} {x} {y} {w} {h}\n")
+            return True, f"Saved labels to {save_path}"
+        except Exception as e:
+            return False, str(e)
+

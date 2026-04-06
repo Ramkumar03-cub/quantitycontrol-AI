@@ -1,0 +1,10 @@
+names:
+- Bad Weld
+- Good Weld
+- Defect
+nc: 3
+path: D:\projects\QC AI\backend\data\welding defect\The Welding Defect Dataset\The
+  Welding Defect Dataset
+test: ../test/images
+train: ../train/images
+val: ../valid/images

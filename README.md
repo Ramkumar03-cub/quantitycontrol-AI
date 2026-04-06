@@ -53,6 +53,7 @@ npm run dev
 Visit `http://localhost:5173` to view the dashboard.
 
 cd backend
+venv\Scripts\uvicorn main:app --reload --host 0.0.0.0 --port 8000
 venv\Scripts\python -m uvicorn main:app --host 0.0.0.0 --port 8000
 
 cd frontend
