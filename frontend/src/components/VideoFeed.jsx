@@ -82,9 +82,15 @@ const VideoFeed = () => {
     };
 
     return (
-        <div className="bg-gray-800 p-4 rounded-lg shadow-lg flex flex-col items-center">
+        <div className="glass-panel p-5 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.3)] flex flex-col items-center">
             <div className="flex justify-between w-full mb-4 items-center">
-                <h3 className="text-xl font-bold text-red-400">Live Inspection Feed</h3>
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full bg-red-500 pulse-recording" />
+                        <span className="text-xs font-bold text-red-400 uppercase tracking-widest">Live</span>
+                    </div>
+                    <h3 className="text-lg font-bold text-white">Inspection Feed</h3>
+                </div>
                 <div className="flex items-center gap-4">
                     <div className="bg-gray-700/50 p-1 rounded-lg flex text-xs font-bold">
                         <button
@@ -111,7 +117,7 @@ const VideoFeed = () => {
                 </div>
             </div>
 
-            <div className="relative w-full aspect-video bg-black rounded overflow-hidden flex items-center justify-center border-2 border-gray-700">
+            <div className="relative w-full aspect-video bg-black/80 rounded-xl overflow-hidden flex items-center justify-center border border-white/10 shadow-inner">
                 {imageSrc ? (
                     <img src={imageSrc} alt="Live Feed" className="w-full h-full object-contain" />
                 ) : (

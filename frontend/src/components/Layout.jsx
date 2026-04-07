@@ -8,10 +8,10 @@ const Layout = ({ children }) => {
 
     const navItems = [
         { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
+        { path: '/maintenance', icon: Activity, label: 'AI Predictive' },
         { path: '/analytics', icon: BarChart2, label: 'Analytics' },
-        { path: '/maintenance', icon: Activity, label: 'Maintenance' },
-        { path: '/history', icon: History, label: 'History' },
         { path: '/training', icon: Brain, label: 'AI Training' },
+        { path: '/history', icon: History, label: 'History' },
         { path: '/settings', icon: Settings, label: 'Settings' },
     ];
 
@@ -26,23 +26,29 @@ const Layout = ({ children }) => {
             {/* Sidebar */}
             <aside
                 className={`${isSidebarOpen ? 'w-64' : 'w-20'
-                    } glass-panel border-r border-white/10 transition-all duration-300 flex flex-col z-20`}
+                    } glass-panel border-r border-white/10 transition-all duration-300 flex flex-col z-20 relative`}
             >
-                <div className="p-4 flex items-center justify-between border-b border-gray-700 h-16">
+                {/* Decorative gradient line at top */}
+                <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-60" />
+
+                <div className="p-4 flex items-center justify-between border-b border-white/5 h-16">
                     {isSidebarOpen && (
-                        <span className="font-bold text-xl bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
-                            QC AI
-                        </span>
+                        <div className="flex items-center gap-2.5">
+                            <img src="/logo.png" alt="QC AI" className="w-9 h-9 rounded-lg shadow-lg shadow-blue-500/20 object-contain" />
+                            <span className="font-bold text-xl gradient-text">
+                                QC AI
+                            </span>
+                        </div>
                     )}
                     <button
                         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                        className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                        className="p-2 hover:bg-white/5 rounded-lg transition-all duration-200 group"
                     >
-                        <Menu className="w-5 h-5 text-gray-400" />
+                        <Menu className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
                     </button>
                 </div>
 
-                <nav className="flex-1 p-4 space-y-2">
+                <nav className="flex-1 p-3 space-y-1">
                     {navItems.map((item) => {
                         const Icon = item.icon;
                         const isActive = location.pathname === item.path;
@@ -51,14 +57,16 @@ const Layout = ({ children }) => {
                             <Link
                                 key={item.path}
                                 to={item.path}
-                                className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ${isActive
-                                    ? 'bg-blue-600/30 text-blue-300 border border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.3)]'
-                                    : 'text-gray-400 hover:bg-white/5 hover:text-white hover:border-white/10 border border-transparent'
+                                className={`sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${isActive
+                                    ? 'sidebar-link-active bg-blue-500/10 text-blue-300 border border-blue-500/30 shadow-[0_0_20px_rgba(59,130,246,0.15)]'
+                                    : 'text-gray-400 hover:bg-white/5 hover:text-gray-200 border border-transparent'
                                     }`}
                             >
-                                <Icon className="w-5 h-5 shrink-0" />
+                                <div className={`p-1.5 rounded-lg transition-all duration-200 ${isActive ? 'bg-blue-500/20' : 'group-hover:bg-white/5'}`}>
+                                    <Icon className={`w-4 h-4 shrink-0 transition-colors ${isActive ? 'text-blue-400' : 'group-hover:text-white'}`} />
+                                </div>
                                 {isSidebarOpen && (
-                                    <span className="font-medium whitespace-nowrap">
+                                    <span className="font-medium whitespace-nowrap text-sm">
                                         {item.label}
                                     </span>
                                 )}
@@ -67,13 +75,15 @@ const Layout = ({ children }) => {
                     })}
                 </nav>
 
-                <div className="p-4 border-t border-gray-700">
+                <div className="p-3 border-t border-white/5">
                     <button
                         onClick={handleLogout}
-                        className="flex items-center gap-3 p-3 w-full rounded-lg text-red-400 hover:bg-red-900/20 transition-colors"
+                        className="flex items-center gap-3 px-3 py-2.5 w-full rounded-xl text-red-400/80 hover:bg-red-500/10 hover:text-red-400 transition-all duration-200 group"
                     >
-                        <LogOut className="w-5 h-5 shrink-0" />
-                        {isSidebarOpen && <span className="font-medium">Logout</span>}
+                        <div className="p-1.5 rounded-lg group-hover:bg-red-500/10 transition-all">
+                            <LogOut className="w-4 h-4 shrink-0" />
+                        </div>
+                        {isSidebarOpen && <span className="font-medium text-sm">Logout</span>}
                     </button>
                 </div>
             </aside>

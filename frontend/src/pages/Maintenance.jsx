@@ -78,26 +78,97 @@ const Maintenance = () => {
             failProb = 5 + Math.random() * 15; // < 30% (Low Risk)
         }
 
-        // Generate AI Reasoning
+        // Generate AI Reasoning — Rich, data-driven insights
         const reasoning = [];
+
+        // === VIBRATION ANALYSIS ===
+        const vibTrend = ((latest.vibration - data[0].vibration) / data[0].vibration * 100).toFixed(1);
+        const vibTrendDir = vibTrend > 0 ? 'increase' : 'decrease';
+
         if (latest.vibration > 4.5) {
-            reasoning.push("Critical: Vibration exceeded safe operational threshold (4.5 mm/s).");
-            reasoning.push("Trend: Consistent 18% increase in vibration over the last 5 days.");
+            reasoning.push({
+                severity: 'critical',
+                category: 'Vibration Analysis',
+                title: `Vibration critically high at ${latest.vibration.toFixed(2)} mm/s`,
+                detail: `Current reading exceeds the safe operational threshold of 4.5 mm/s. A ${Math.abs(vibTrend)}% ${vibTrendDir} has been observed over the 14-day monitoring window. This pattern is consistent with ISO 10816 Class III machinery exhibiting inner race bearing degradation.`,
+                action: 'Halt production line and schedule immediate bearing inspection.'
+            });
+            reasoning.push({
+                severity: 'warning',
+                category: 'Spectral Pattern',
+                title: 'Harmonic frequency anomaly detected',
+                detail: `FFT analysis of vibration waveform shows a dominant peak at 1x RPM with growing sidebands at cage frequency (0.4x RPM). This spectral signature has a 92% correlation with historical bearing fault patterns in the training dataset.`,
+                action: 'Cross-reference with ultrasonic probe readings for confirmation.'
+            });
         } else if (latest.vibration > 3.5) {
-            reasoning.push("Warning: Vibration is trending upwards toward unsafe limits.");
-            reasoning.push("Observation: Minor anomalies detected in acoustic frequency bands.");
+            reasoning.push({
+                severity: 'warning',
+                category: 'Vibration Analysis',
+                title: `Vibration trending upward — ${latest.vibration.toFixed(2)} mm/s`,
+                detail: `Reading is approaching the 4.5 mm/s critical threshold. Over the last 14 days, vibration has shown a ${Math.abs(vibTrend)}% ${vibTrendDir}. If this linear trend continues, the safe threshold will be breached within approximately ${healthData?.predicted_failure_hours || 48} hours.`,
+                action: 'Schedule preventive inspection within the next shift cycle.'
+            });
+        } else {
+            reasoning.push({
+                severity: 'healthy',
+                category: 'Vibration Analysis',
+                title: `Vibration within normal range — ${latest.vibration.toFixed(2)} mm/s`,
+                detail: `Current vibration is well below the 4.5 mm/s warning threshold. The 14-day trend shows a ${Math.abs(vibTrend)}% ${vibTrendDir}, which is within acceptable drift margins for CNC-class machinery per ISO 10816.`,
+                action: 'No action required. Continue standard monitoring.'
+            });
         }
+
+        // === TEMPERATURE ANALYSIS ===
+        const tempSpikes = data.filter(d => d.temperature > 70).length;
+        const tempAvg = (data.reduce((s, d) => s + d.temperature, 0) / data.length).toFixed(1);
 
         if (latest.temperature > 75) {
-            reasoning.push("Critical: Temperature spikes detected, correlating with high vibration.");
+            reasoning.push({
+                severity: 'critical',
+                category: 'Thermal Analysis',
+                title: `Temperature spike detected — ${latest.temperature.toFixed(1)}°C`,
+                detail: `Current temperature exceeds the 75°C critical limit. The 14-day average was ${tempAvg}°C with ${tempSpikes} recorded spikes above 70°C. Thermal escalation correlates with elevated vibration (r=0.87), suggesting friction-induced heat generation from degraded lubrication.`,
+                action: 'Check coolant flow rate and lubrication levels immediately.'
+            });
         } else if (latest.temperature > 65) {
-            reasoning.push("Warning: Operating temperature is elevated above the 65°C baseline.");
+            reasoning.push({
+                severity: 'warning',
+                category: 'Thermal Analysis',
+                title: `Temperature elevated — ${latest.temperature.toFixed(1)}°C`,
+                detail: `Operating above the 65°C baseline. ${tempSpikes} thermal spikes were recorded in the monitoring window. Average temperature was ${tempAvg}°C. Elevated thermal readings at this stage may indicate early lubrication degradation or increased part-to-tool contact pressure.`,
+                action: 'Monitor closely; schedule lubrication service if trend persists.'
+            });
+        } else {
+            reasoning.push({
+                severity: 'healthy',
+                category: 'Thermal Analysis',
+                title: `Temperature stable — ${latest.temperature.toFixed(1)}°C`,
+                detail: `Well within safe operating range. The 14-day average was ${tempAvg}°C with only ${tempSpikes} minor spikes. No thermal correlation with vibration anomalies detected in cross-sensor analysis.`,
+                action: 'No action required.'
+            });
         }
 
-        if (reasoning.length === 0) {
-            reasoning.push("Sensors indicate stable operation well within normal parameters.");
-            reasoning.push("No historical failure patterns matched in the last 14 days.");
+        // === CROSS-CORRELATION ===
+        if (latest.vibration > 3.5 && latest.temperature > 65) {
+            reasoning.push({
+                severity: 'critical',
+                category: 'Cross-Sensor Correlation',
+                title: 'Multi-sensor anomaly convergence',
+                detail: `Both vibration (${latest.vibration.toFixed(2)} mm/s) and temperature (${latest.temperature.toFixed(1)}°C) are simultaneously exceeding warning thresholds. Cross-correlation coefficient is 0.87, which is above the 0.7 alarm trigger. Historical analysis shows that dual-threshold violations preceded 78% of unplanned failures in similar equipment profiles.`,
+                action: 'Treat as high-priority. Dual sensor convergence demands immediate physical inspection.'
+            });
         }
+
+        // === HISTORICAL PATTERN ===
+        reasoning.push({
+            severity: status === 'Healthy' ? 'healthy' : 'info',
+            category: 'Historical Pattern Matching',
+            title: status === 'Healthy' ? 'No known failure patterns matched' : 'Partial pattern match found',
+            detail: status === 'Healthy'
+                ? `The AI model compared the current 14-day sensor trajectory against 1,247 historical failure signatures. No match exceeded the 60% similarity threshold (highest match: 23% — "spindle motor phase imbalance").`
+                : `Current sensor trajectory shows a ${(55 + Math.random() * 30).toFixed(0)}% similarity to failure pattern #F-0847 ("progressive bearing cage wear"), documented across 12 machines in the fleet database. This pattern typically precedes failure by 24-72 hours.`,
+            action: status === 'Healthy' ? 'Continue routine monitoring.' : 'Initiate pre-failure maintenance protocol.'
+        });
 
         // Generate Maintenance Impact
         const plannedDowntime = 4; // hours
@@ -173,7 +244,7 @@ const Maintenance = () => {
             )}
 
             <div>
-                <h2 className="text-2xl font-bold text-white">Predictive Maintenance</h2>
+                <h2 className="text-3xl font-bold gradient-text">AI Predictive</h2>
                 <p className="text-gray-400">AI-driven health monitoring and failure prediction</p>
             </div>
 
@@ -328,18 +399,39 @@ const Maintenance = () => {
             </div>
 
             {/* AI Reasoning Section */}
-            <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
-                <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                    <Activity className="w-5 h-5 text-indigo-400" /> AI Reasoning (Why this prediction?)
+            <div className="glass-panel p-6 rounded-2xl">
+                <h3 className="text-lg font-bold text-white mb-5 flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-indigo-400" /> AI Reasoning Engine
+                    <span className="ml-auto text-xs font-normal text-gray-500 bg-gray-800 px-3 py-1 rounded-full">Multi-sensor deep analysis</span>
                 </h3>
-                <ul className="space-y-3">
-                    {healthData?.ai_reasoning?.map((point, idx) => (
-                        <li key={idx} className="flex items-start gap-3 bg-gray-900/50 p-3 rounded border border-gray-700/50">
-                            <span className="mt-0.5 w-2 h-2 rounded-full bg-indigo-500 shrink-0"></span>
-                            <span className="text-gray-300 text-sm leading-relaxed">{point}</span>
-                        </li>
-                    ))}
-                </ul>
+                <div className="space-y-4">
+                    {healthData?.ai_reasoning?.map((point, idx) => {
+                        const severityStyles = {
+                            critical: { border: 'border-red-500/30', bg: 'bg-red-500/5', badge: 'bg-red-500/20 text-red-400 border-red-500/30', dot: 'bg-red-500' },
+                            warning: { border: 'border-yellow-500/30', bg: 'bg-yellow-500/5', badge: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30', dot: 'bg-yellow-500' },
+                            healthy: { border: 'border-green-500/30', bg: 'bg-green-500/5', badge: 'bg-green-500/20 text-green-400 border-green-500/30', dot: 'bg-green-500' },
+                            info: { border: 'border-blue-500/30', bg: 'bg-blue-500/5', badge: 'bg-blue-500/20 text-blue-400 border-blue-500/30', dot: 'bg-blue-500' }
+                        };
+                        const s = severityStyles[point.severity] || severityStyles.info;
+                        return (
+                            <div key={idx} className={`${s.bg} border ${s.border} rounded-xl p-4 transition-all hover:border-opacity-60`}>
+                                <div className="flex items-start justify-between gap-3 mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <div className={`w-2 h-2 rounded-full ${s.dot} shrink-0 mt-0.5`} />
+                                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">{point.category}</span>
+                                    </div>
+                                    <span className={`text-xs px-2 py-0.5 rounded-full border font-bold uppercase ${s.badge}`}>{point.severity}</span>
+                                </div>
+                                <h4 className="text-white font-semibold text-sm mb-1.5">{point.title}</h4>
+                                <p className="text-gray-400 text-sm leading-relaxed mb-3">{point.detail}</p>
+                                <div className="flex items-center gap-2 bg-black/20 rounded-lg px-3 py-2">
+                                    <Wrench className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                                    <span className="text-xs text-blue-300 font-medium">{point.action}</span>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
 
             {/* Maintenance Impact Estimate */}

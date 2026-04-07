@@ -61,39 +61,39 @@ const Analytics = () => {
     return (
         <div className="space-y-6">
             <div>
-                <h2 className="text-2xl font-bold text-white">Advanced Analytics</h2>
-                <p className="text-gray-400">Insights and trends from manufacturing data</p>
+                <h2 className="text-3xl font-bold gradient-text">Advanced Analytics</h2>
+                <p className="text-gray-400 mt-1">Real-time insights and trends from manufacturing data</p>
             </div>
 
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="glass-panel p-6 rounded-xl glass-panel-hover">
-                    <div className="p-4 bg-blue-900/30 rounded-full text-blue-400">
-                        <Activity className="w-8 h-8" />
+                <div className="glass-panel p-6 rounded-2xl glass-panel-hover card-glow-blue flex items-center gap-4">
+                    <div className="p-4 bg-blue-500/10 rounded-2xl border border-blue-500/20">
+                        <Activity className="w-8 h-8 text-blue-400" />
                     </div>
                     <div>
-                        <p className="text-gray-400 text-sm uppercase font-bold">Total Inspections</p>
-                        <p className="text-3xl font-bold text-white">{data.kpi.total_inspections}</p>
+                        <p className="text-gray-400 text-xs uppercase font-bold tracking-wider">Total Inspections</p>
+                        <p className="text-3xl font-bold text-white mt-1">{data.kpi.total_inspections}</p>
                     </div>
                 </div>
 
-                <div className="bg-gray-800 p-6 rounded-xl border border-gray-700 flex items-center gap-4 hover:border-green-500/50 transition-colors">
-                    <div className="p-4 bg-green-900/30 rounded-full text-green-400">
-                        <CheckCircle className="w-8 h-8" />
+                <div className="glass-panel p-6 rounded-2xl glass-panel-hover card-glow-green flex items-center gap-4">
+                    <div className="p-4 bg-emerald-500/10 rounded-2xl border border-emerald-500/20">
+                        <CheckCircle className="w-8 h-8 text-emerald-400" />
                     </div>
                     <div>
-                        <p className="text-gray-400 text-sm uppercase font-bold">Pass Rate</p>
-                        <p className="text-3xl font-bold text-white">{data.kpi.pass_rate}%</p>
+                        <p className="text-gray-400 text-xs uppercase font-bold tracking-wider">Pass Rate</p>
+                        <p className="text-3xl font-bold text-white mt-1">{data.kpi.pass_rate}%</p>
                     </div>
                 </div>
 
-                <div className="bg-gray-800 p-6 rounded-xl border border-gray-700 flex items-center gap-4 hover:border-red-500/50 transition-colors">
-                    <div className="p-4 bg-red-900/30 rounded-full text-red-400">
-                        <AlertTriangle className="w-8 h-8" />
+                <div className="glass-panel p-6 rounded-2xl glass-panel-hover card-glow-red flex items-center gap-4">
+                    <div className="p-4 bg-red-500/10 rounded-2xl border border-red-500/20">
+                        <AlertTriangle className="w-8 h-8 text-red-400" />
                     </div>
                     <div>
-                        <p className="text-gray-400 text-sm uppercase font-bold">Total Failures</p>
-                        <p className="text-3xl font-bold text-white">{data.kpi.fail_count}</p>
+                        <p className="text-gray-400 text-xs uppercase font-bold tracking-wider">Total Failures</p>
+                        <p className="text-3xl font-bold text-white mt-1">{data.kpi.fail_count}</p>
                     </div>
                 </div>
             </div>
@@ -249,7 +249,7 @@ const Analytics = () => {
             </div>
 
             {/* Root Cause Analysis Section */}
-            <div className="bg-gray-800 p-6 rounded-xl border border-gray-700">
+            <div className="glass-panel p-6 rounded-2xl">
                 <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
                     <AlertTriangle className="w-5 h-5 text-yellow-400" /> Top Root Causes (AI Analysis)
                 </h3>

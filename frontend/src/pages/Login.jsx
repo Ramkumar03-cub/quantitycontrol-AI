@@ -45,13 +45,14 @@ const Login = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-900">
-            <div className="bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-md border border-gray-700">
+        <div className="min-h-screen flex items-center justify-center" style={{ background: 'radial-gradient(ellipse at top left, #0f172a 0%, #0a0f1c 50%, #030712 100%)' }}>
+            <div className="glass-panel p-8 rounded-2xl shadow-[0_8px_60px_rgba(0,0,0,0.5)] w-full max-w-md">
                 <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500 mb-2">
+                    <img src="/logo.png" alt="QC AI" className="w-16 h-16 mx-auto mb-4 rounded-xl shadow-lg shadow-blue-500/20 object-contain" />
+                    <h1 className="text-3xl font-bold gradient-text mb-2">
                         QC AI
                     </h1>
-                    <p className="text-gray-400">
+                    <p className="text-gray-400 text-sm">
                         {isRegistering ? 'Create a new account' : 'Sign in to access dashboard'}
                     </p>
                 </div>
@@ -77,7 +78,7 @@ const Login = () => {
                                 type="text"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
-                                className="w-full bg-gray-900 border border-gray-700 rounded-lg py-2 pl-10 pr-4 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                                className="w-full bg-black/30 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-blue-500/50 focus:shadow-[0_0_15px_rgba(59,130,246,0.15)] transition-all placeholder:text-gray-600"
                                 placeholder="Enter username"
                                 required
                             />
@@ -92,7 +93,7 @@ const Login = () => {
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-full bg-gray-900 border border-gray-700 rounded-lg py-2 pl-10 pr-4 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                                className="w-full bg-black/30 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-blue-500/50 focus:shadow-[0_0_15px_rgba(59,130,246,0.15)] transition-all placeholder:text-gray-600"
                                 placeholder="Enter password"
                                 required
                             />
@@ -101,7 +102,7 @@ const Login = () => {
 
                     <button
                         type="submit"
-                        className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white font-bold py-2 px-4 rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                        className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white font-bold py-2.5 px-4 rounded-xl hover:opacity-90 hover:shadow-[0_0_30px_rgba(59,130,246,0.3)] transition-all duration-300 flex items-center justify-center gap-2"
                     >
                         {isRegistering ? <UserPlus className="w-5 h-5" /> : <LogIn className="w-5 h-5" />}
                         {isRegistering ? 'Register' : 'Sign In'}
