@@ -26,7 +26,14 @@ async def inspect_uploaded_image(file: UploadFile = File(...)):
     
     is_defect = any(d.get("severity") != "pass" for d in detections)
     status = "FAIL" if is_defect else "PASS"
-    reason = "Defect detected in uploaded image" if is_defect else "No defects identified"
+    
+    if is_defect:
+        defect_labels = list(set(
+            d.get("label", "Unknown") for d in detections if d.get("severity") != "pass"
+        ))
+        reason = f"Detected: {', '.join(defect_labels)}"
+    else:
+        reason = "No defects identified — all regions passed quality checks"
 
     await history_manager.add_record({
         "status": status,

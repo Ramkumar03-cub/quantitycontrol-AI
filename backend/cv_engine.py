@@ -10,6 +10,41 @@ class CVEngine:
         self.defect_types = ["Crack", "Dent", "Scratch"] # Default
         self.yolo_model = None
 
+    # --- Contextual Defect Descriptions ---
+    DEFECT_DESCRIPTIONS = {
+        # Welding / Weld defects
+        "good weld":        "The weld bead appears uniform and continuous with no visible surface anomalies. No defect detected.",
+        "bad weld":         "The weld bead shows irregular geometry, porosity, or undercut. This indicates a structural weld defect that may compromise joint strength.",
+        "crack":            "A linear fracture was detected on the surface. Cracks can propagate under load and require immediate remediation to prevent part failure.",
+        "porosity":         "Small gas pockets are visible within the material. Porosity weakens the cross-sectional area and is commonly caused by contamination or incorrect shielding gas.",
+        "spattering":       "Weld spatter particles are present on the adjacent surface. While often cosmetic, heavy spatter can indicate incorrect arc settings.",
+        # Generic / CV-based
+        "dent":             "A surface depression was detected. Dents affect dimensional tolerances and surface finish quality.",
+        "scratch":          "A linear surface abrasion was detected. Scratches can initiate stress fractures under cyclic loading.",
+        "rust":             "Oxidation is visible on the surface. Rust indicates corrosion that weakens structural integrity over time.",
+        "chip":             "A fragment has broken away from the edge or surface, indicating mechanical impact or brittleness.",
+        "bubble":           "A subsurface void or air bubble was detected. This indicates incomplete material consolidation.",
+        "tear":             "A material tear or break was detected. Immediate rejection is recommended.",
+        "stain":            "A chemical or oil stain was detected on the surface, which may indicate contamination.",
+        "weave error":      "An irregular weave pattern was detected. This affects material uniformity and tensile strength.",
+        "defect":           "An anomaly was detected on the part surface. Manual review is recommended to classify the specific defect type.",
+        "defect a":         "Category A anomaly detected. This class indicates a primary surface irregularity requiring inspection.",
+        "defect b":         "Category B anomaly detected. This class indicates a secondary material flaw.",
+        "surface flaw":     "A general surface imperfection was detected. This may affect cosmetic or functional quality.",
+    }
+
+    def get_description(self, label: str, severity: str) -> str:
+        """Return a human-readable description for a given defect label."""
+        key = label.lower().strip()
+        if key in self.DEFECT_DESCRIPTIONS:
+            return self.DEFECT_DESCRIPTIONS[key]
+        if severity == "pass":
+            return "No significant anomaly detected for this region. The part appears within acceptable quality parameters."
+        elif severity == "critical":
+            return f"A critical-severity '{label}' anomaly was detected. This part should be quarantined and reviewed by a quality engineer immediately."
+        else:
+            return f"A '{label}' anomaly was detected with {severity} severity. Review the annotated image for the exact location of the defect."
+
     def update_product_context(self, name: str, material: str):
         # Update defect types based on material/product
         material = material.lower()
@@ -81,7 +116,8 @@ class CVEngine:
                         "label": label_name,
                         "type": label_name,
                         "severity": severity,
-                        "confidence": round(conf, 2)
+                        "confidence": round(conf, 2),
+                        "description": self.get_description(label_name, severity)
                     }
                     detections.append(detection)
                     
@@ -110,12 +146,14 @@ class CVEngine:
                 w = random.randint(50, 100)
                 h = random.randint(50, 100)
                 
-                confidence = round(random.uniform(0.85, 0.99), 2)
+                defect_type = random.choice(self.defect_types)
                 detection = {
                     "box": [x, y, w, h], 
                     "label": "Defect",
-                    "type": random.choice(self.defect_types),
-                    "confidence": confidence
+                    "type": defect_type,
+                    "confidence": confidence,
+                    "severity": "warning",
+                    "description": self.get_description(defect_type, "warning")
                 }
                 detections.append(detection)
                 

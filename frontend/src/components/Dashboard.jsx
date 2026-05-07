@@ -4,6 +4,7 @@ import VideoFeed from './VideoFeed';
 import AIAnalysisModal from './AIAnalysisModal';
 import { AlertTriangle, CheckCircle, Activity, ThumbsUp, ThumbsDown, XCircle, Brain, Zap, ChevronDown } from 'lucide-react';
 import { aiService } from '../services/aiService';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const Dashboard = () => {
     const [inspectionResult, setInspectionResult] = useState(null);
@@ -452,16 +453,32 @@ const Dashboard = () => {
                                     </div>
                                     <div className="bg-gray-900 p-4 rounded-lg border border-gray-700 col-span-2">
                                         <p className="text-gray-500 text-xs uppercase mb-2">Result Details</p>
-                                        <div className="flex flex-wrap gap-2">
+                                        <div className="space-y-3">
                                             {uploadResult.detections.filter(d => d.severity !== 'pass').length === 0 ? (
-                                                <span className="text-green-400 text-sm flex items-center gap-1">
-                                                    <CheckCircle className="w-4 h-4" /> No Defects Found
+                                                <span className="text-green-400 text-sm flex items-center gap-2">
+                                                    <CheckCircle className="w-4 h-4" /> 
+                                                    <span>No Defects Found — all regions passed quality checks.</span>
                                                 </span>
                                             ) : (
-                                                uploadResult.detections.map((d, i) => (
-                                                    <span key={i} className={`px-2 py-1 rounded text-sm border ${d.severity === 'pass' ? 'bg-green-900/30 text-green-400 border-green-900/50' : 'bg-red-900/30 text-red-400 border-red-900/50'}`}>
-                                                        {d.type} ({(d.confidence * 100).toFixed(0)}%)
-                                                    </span>
+                                                uploadResult.detections
+                                                    .filter(d => d.severity !== 'pass')
+                                                    .map((d, i) => (
+                                                    <div key={i} className={`p-3 rounded-lg border ${d.severity === 'critical' ? 'bg-red-900/20 border-red-500/40' : 'bg-yellow-900/20 border-yellow-500/40'}`}>
+                                                        <div className="flex items-center justify-between mb-1.5">
+                                                            <span className={`font-bold text-sm font-mono ${d.severity === 'critical' ? 'text-red-400' : 'text-yellow-400'}`}>
+                                                                {d.type || d.label}
+                                                            </span>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className={`text-xs px-2 py-0.5 rounded border uppercase font-bold ${
+                                                                    d.severity === 'critical' ? 'bg-red-900/40 text-red-400 border-red-500/50' : 'bg-yellow-900/40 text-yellow-400 border-yellow-500/50'
+                                                                }`}>{d.severity}</span>
+                                                                <span className="text-xs text-gray-400 font-mono">{(d.confidence * 100).toFixed(0)}% conf.</span>
+                                                            </div>
+                                                        </div>
+                                                        <p className="text-xs text-gray-300 leading-relaxed">
+                                                            {d.description || 'No description available for this defect type.'}
+                                                        </p>
+                                                    </div>
                                                 ))
                                             )}
                                         </div>
@@ -477,70 +494,79 @@ const Dashboard = () => {
                         <Activity className="w-5 h-5" /> Live Alerts
                     </h3>
                     <div className="space-y-4">
-                        {(() => {
-                            const filteredAlerts = alerts.filter(alert =>
-                                inspectionMode === 'live' ? alert.source !== 'Manual Upload' : alert.source === 'Manual Upload'
-                            );
+                        <AnimatePresence>
+                            {(() => {
+                                const filteredAlerts = alerts.filter(alert =>
+                                    inspectionMode === 'live' ? alert.source !== 'Manual Upload' : alert.source === 'Manual Upload'
+                                );
 
-                            if (filteredAlerts.length === 0) {
-                                return <div className="text-gray-500 text-center py-8">No {inspectionMode === 'live' ? 'live ' : 'uploaded '}defects to review</div>;
-                            }
+                                if (filteredAlerts.length === 0) {
+                                    return <div className="text-gray-500 text-center py-8">No {inspectionMode === 'live' ? 'live ' : 'uploaded '}defects to review</div>;
+                                }
 
-                            return filteredAlerts.map((alert) => {
-                                const styles = getAlertStyles(alert.severity);
-                                return (
-                                    <div key={alert.id} className={styles.wrapper}>
-                                        <div className="flex items-start gap-3 mb-2">
-                                            <AlertTriangle className={`w-5 h-5 shrink-0 mt-0.5 ${styles.icon}`} />
-                                            <div className="flex-1">
-                                                <div className="flex justify-between items-start">
-                                                    <h4 className={`font-bold text-lg ${styles.title}`}>
-                                                        {alert.type || alert.label}
-                                                    </h4>
-                                                    <span className={`text-xs px-2 py-0.5 rounded border ${styles.badge} uppercase font-bold`}>
-                                                        {alert.severity}
-                                                    </span>
-                                                </div>
-                                                <div className="text-xs text-gray-400 mt-1 flex gap-3">
-                                                    <span>Conf: <span className="text-white font-mono">{(alert.confidence * 100).toFixed(0)}%</span></span>
-                                                    <span>{new Date(alert.timestamp * 1000).toLocaleTimeString()}</span>
+                                return filteredAlerts.map((alert) => {
+                                    const styles = getAlertStyles(alert.severity);
+                                    return (
+                                        <motion.div
+                                            key={alert.id}
+                                            initial={{ opacity: 0, x: -20, scale: 0.95 }}
+                                            animate={{ opacity: 1, x: 0, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+                                            transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+                                            className={styles.wrapper}
+                                        >
+                                            <div className="flex items-start gap-3 mb-2">
+                                                <AlertTriangle className={`w-5 h-5 shrink-0 mt-0.5 ${styles.icon}`} />
+                                                <div className="flex-1">
+                                                    <div className="flex justify-between items-start">
+                                                        <h4 className={`font-bold text-lg ${styles.title}`}>
+                                                            {alert.type || alert.label}
+                                                        </h4>
+                                                        <span className={`text-xs px-2 py-0.5 rounded border ${styles.badge} uppercase font-bold`}>
+                                                            {alert.severity}
+                                                        </span>
+                                                    </div>
+                                                    <div className="text-xs text-gray-400 mt-1 flex gap-3">
+                                                        <span>Conf: <span className="text-white font-mono">{(alert.confidence * 100).toFixed(0)}%</span></span>
+                                                        <span>{new Date(alert.timestamp * 1000).toLocaleTimeString()}</span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
 
-                                        {/* Suggested Action */}
-                                        <div className="bg-gray-900/50 p-2 rounded mb-3 border border-gray-700/50">
-                                            <div className="text-xs text-gray-500 uppercase font-bold mb-1">Suggested Action</div>
-                                            <div className="text-sm text-gray-200">{alert.suggestedAction || "Review Manually"}</div>
-                                        </div>
+                                            {/* Suggested Action */}
+                                            <div className="bg-gray-900/50 p-2 rounded mb-3 border border-gray-700/50">
+                                                <div className="text-xs text-gray-500 uppercase font-bold mb-1">Suggested Action</div>
+                                                <div className="text-sm text-gray-200">{alert.suggestedAction || "Review Manually"}</div>
+                                            </div>
 
-                                        {/* Action Buttons */}
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={() => handleAnalyze(alert)}
-                                                className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-xs font-medium bg-purple-600 hover:bg-purple-700 text-white rounded transition-colors shadow-lg shadow-purple-900/20"
-                                            >
-                                                <Brain className="w-3 h-3" /> Detailed Analysis
-                                            </button>
-                                            <button
-                                                onClick={() => handleFeedback(alert.id, true)}
-                                                className="px-3 py-2 text-xs bg-gray-700 hover:bg-green-900/40 text-gray-300 hover:text-green-400 rounded transition-colors border border-gray-600 hover:border-green-500/50"
-                                                title="Mark as Correct"
-                                            >
-                                                <ThumbsUp className="w-3 h-3" />
-                                            </button>
-                                            <button
-                                                onClick={() => handleFeedback(alert.id, false)}
-                                                className="px-3 py-2 text-xs bg-gray-700 hover:bg-red-900/40 text-gray-300 hover:text-red-400 rounded transition-colors border border-gray-600 hover:border-red-500/50"
-                                                title="Mark as False Positive"
-                                            >
-                                                <ThumbsDown className="w-3 h-3" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                );
-                            });
-                        })()}
+                                            {/* Action Buttons */}
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => handleAnalyze(alert)}
+                                                    className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-xs font-medium bg-purple-600 hover:bg-purple-700 text-white rounded transition-colors shadow-lg shadow-purple-900/20"
+                                                >
+                                                    <Brain className="w-3 h-3" /> Detailed Analysis
+                                                </button>
+                                                <button
+                                                    onClick={() => handleFeedback(alert.id, true)}
+                                                    className="px-3 py-2 text-xs bg-gray-700 hover:bg-green-900/40 text-gray-300 hover:text-green-400 rounded transition-colors border border-gray-600 hover:border-green-500/50"
+                                                    title="Mark as Correct"
+                                                >
+                                                    <ThumbsUp className="w-3 h-3" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleFeedback(alert.id, false)}
+                                                    className="px-3 py-2 text-xs bg-gray-700 hover:bg-red-900/40 text-gray-300 hover:text-red-400 rounded transition-colors border border-gray-600 hover:border-red-500/50"
+                                                    title="Mark as False Positive"
+                                                >
+                                                    <ThumbsDown className="w-3 h-3" />
+                                                </button>
+                                            </div>
+                                        </motion.div>
+                                    );
+                                });
+                            })()}
+                        </AnimatePresence>
                     </div>
                 </div>
             </div>

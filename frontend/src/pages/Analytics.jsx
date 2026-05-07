@@ -1,6 +1,20 @@
 import { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Activity, CheckCircle, XCircle, TrendingUp, AlertTriangle } from 'lucide-react';
+import { motion } from 'framer-motion';
+
+const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+        opacity: 1,
+        transition: { staggerChildren: 0.1 }
+    }
+};
+
+const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } }
+};
 
 const Analytics = () => {
     const [data, setData] = useState(null);
@@ -59,11 +73,16 @@ const Analytics = () => {
     const COLORS = ['#0891b2', '#2563eb', '#7c3aed', '#db2777', '#dc2626'];
 
     return (
-        <div className="space-y-6">
-            <div>
+        <motion.div
+            className="space-y-6"
+            variants={containerVariants}
+            initial="hidden"
+            animate="show"
+        >
+            <motion.div variants={itemVariants}>
                 <h2 className="text-3xl font-bold gradient-text">Advanced Analytics</h2>
                 <p className="text-gray-400 mt-1">Real-time insights and trends from manufacturing data</p>
-            </div>
+            </motion.div>
 
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -87,7 +106,7 @@ const Analytics = () => {
                     </div>
                 </div>
 
-                <div className="glass-panel p-6 rounded-2xl glass-panel-hover card-glow-red flex items-center gap-4">
+                <motion.div variants={itemVariants} className="glass-panel p-6 rounded-2xl glass-panel-hover card-glow-red flex items-center gap-4">
                     <div className="p-4 bg-red-500/10 rounded-2xl border border-red-500/20">
                         <AlertTriangle className="w-8 h-8 text-red-400" />
                     </div>
@@ -95,12 +114,12 @@ const Analytics = () => {
                         <p className="text-gray-400 text-xs uppercase font-bold tracking-wider">Total Failures</p>
                         <p className="text-3xl font-bold text-white mt-1">{data.kpi.fail_count}</p>
                     </div>
-                </div>
+                </motion.div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Weekly Trend Chart */}
-                <div className="glass-panel p-6 rounded-xl">
+                <motion.div variants={itemVariants} className="glass-panel p-6 rounded-xl">
                     <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
                         <TrendingUp className="w-5 h-5 text-blue-400" /> Weekly Inspection Trend
                     </h3>
@@ -120,10 +139,10 @@ const Analytics = () => {
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
-                </div>
+                </motion.div>
 
                 {/* Defect Distribution Chart */}
-                <div className="glass-panel p-6 rounded-xl">
+                <motion.div variants={itemVariants} className="glass-panel p-6 rounded-xl">
                     <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
                         <XCircle className="w-5 h-5 text-red-400" /> Defect Distribution
                     </h3>
@@ -172,13 +191,13 @@ const Analytics = () => {
                             <span className="text-xs text-gray-500 uppercase">Defects</span>
                         </div>
                     </div>
-                </div>
+                </motion.div>
             </div>
 
             {/* Operational Insights Section (New) */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Shift Performance */}
-                <div className="glass-panel p-6 rounded-xl">
+                <motion.div variants={itemVariants} className="glass-panel p-6 rounded-xl">
                     <h3 className="text-lg font-bold text-white mb-4">Defect Rate by Shift</h3>
                     <div className="h-[200px]">
                         <ResponsiveContainer width="100%" height="100%">
@@ -198,10 +217,10 @@ const Analytics = () => {
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
-                </div>
+                </motion.div>
 
                 {/* Machine Performance */}
-                <div className="glass-panel p-6 rounded-xl">
+                <motion.div variants={itemVariants} className="glass-panel p-6 rounded-xl">
                     <h3 className="text-lg font-bold text-white mb-4">Defect Rate by Line</h3>
                     <div className="h-[200px]">
                         <ResponsiveContainer width="100%" height="100%">
@@ -221,10 +240,10 @@ const Analytics = () => {
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
-                </div>
+                </motion.div>
 
                 {/* Operator Risk Analysis */}
-                <div className="glass-panel p-6 rounded-xl">
+                <motion.div variants={itemVariants} className="glass-panel p-6 rounded-xl">
                     <h3 className="text-lg font-bold text-white mb-4">Operator Risk Analysis</h3>
                     <div className="space-y-3">
                         {data.operational.operator.map((op) => (
@@ -245,11 +264,11 @@ const Analytics = () => {
                             </div>
                         ))}
                     </div>
-                </div>
+                </motion.div>
             </div>
 
             {/* Root Cause Analysis Section */}
-            <div className="glass-panel p-6 rounded-2xl">
+            <motion.div variants={itemVariants} className="glass-panel p-6 rounded-2xl">
                 <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
                     <AlertTriangle className="w-5 h-5 text-yellow-400" /> Top Root Causes (AI Analysis)
                 </h3>
@@ -279,8 +298,8 @@ const Analytics = () => {
                         </div>
                     ))}
                 </div>
-            </div>
-        </div>
+            </motion.div>
+        </motion.div>
     );
 };
 
